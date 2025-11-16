@@ -1,0 +1,143 @@
+"""
+Realistic synthetic CSV generator for influencer marketing project.
+
+Generates CSVs for:
+- influencers
+- content
+- engagement
+- audience_demographics
+
+The output folder is automatically created relative to the script location,
+so it works even if the folder is renamed.
+"""
+
+import pandas as pd
+from faker import Faker
+import random
+import os
+import numpy as np
+import dotenv
+
+dotenv.load_dotenv()
+
+fake = Faker()
+
+# ----------------------------
+# PARAMETERS
+# ----------------------------
+NUM_INFLUENCERS = 30
+MIN_POSTS = 2
+MAX_POSTS = 30
+
+PLATFORMS = ["Instagram", "TikTok", "YouTube"]
+CATEGORIES = ["Beauty", "Fitness", "Tech", "Food", "Travel", "Gaming"]
+CONTENT_TYPES = ["Image", "Video", "Reel", "Story"]
+TOPICS = ["Fitness", "Beauty", "Tech", "Food", "Travel", "Gaming"]
+AGE_GROUPS = ["13-17", "18-24", "25-34", "35-44", "45-54", "55+"]
+GENDERS = ["Male", "Female", "Other"]
+COUNTRIES = ["USA", "UK", "Canada", "Germany", "France", "India", "Brazil"]
+
+# ----------------------------
+# OUTPUT FOLDER
+# ----------------------------
+script_dir = os.path.dirname(os.path.abspath(__file__))
+csv_folder = os.getenv("CSV_FOLDER", "csv_data")  # fallback to "csv_data" if not set
+output_folder = os.path.join(script_dir, csv_folder)
+os.makedirs(output_folder, exist_ok=True)
+
+# ----------------------------
+# 1. influencers
+# ----------------------------
+influencers = []
+
+for i in range(1, NUM_INFLUENCERS + 1):
+    follower_count = int(np.random.lognormal(mean=8, sigma=1))
+    influencers.append({
+        "influencer_id": i,
+        "name": fake.name(),
+        "username": fake.user_name(),
+        "platform": random.choice(PLATFORMS),
+        "follower_count": follower_count,
+        "category": random.choice(CATEGORIES),
+        "created_at": fake.date_this_decade()
+    })
+
+df_influencers = pd.DataFrame(influencers)
+df_influencers.to_csv(os.path.join(output_folder, "influencers.csv"), index=False)
+
+# ----------------------------
+# 2. content
+# ----------------------------
+contents = []
+content_id_counter = 1
+
+for influencer in influencers:
+    num_posts = random.randint(MIN_POSTS, MAX_POSTS)
+    for _ in range(num_posts):
+        contents.append({
+            "content_id": content_id_counter,
+            "influencer_id": influencer["influencer_id"],
+            "content_type": random.choices(CONTENT_TYPES, weights=[0.4, 0.3, 0.2, 0.1])[0],
+            "topic": random.choice(TOPICS),
+            "post_date": fake.date_this_year(),
+            "caption": fake.sentence(nb_words=random.randint(5, 20)),
+            "url": fake.url()
+        })
+        content_id_counter += 1
+
+df_content = pd.DataFrame(contents)
+df_content.to_csv(os.path.join(output_folder, "content.csv"), index=False)
+
+# ----------------------------
+# 3. engagement
+# ----------------------------
+engagements = []
+
+for content in contents:
+    influencer = next(i for i in influencers if i["influencer_id"] == content["influencer_id"])
+    followers = influencer["follower_count"]
+
+    likes = max(0, int(random.gauss(followers * 0.03, 50)))
+    comments = max(0, int(likes * random.uniform(0.05, 0.2)))
+    shares = max(0, int(likes * random.uniform(0.01, 0.05)))
+    views = max(likes + comments, int(random.gauss(followers * random.uniform(0.1, 0.5), 100)))
+    engagement_rate = round((likes + comments + shares) / max(1, views), 4)
+
+    engagements.append({
+        "engagement_id": content["content_id"],
+        "content_id": content["content_id"],
+        "likes": likes,
+        "comments": comments,
+        "shares": shares,
+        "views": views,
+        "engagement_rate": engagement_rate
+    })
+
+df_engagement = pd.DataFrame(engagements)
+df_engagement.to_csv(os.path.join(output_folder, "engagement.csv"), index=False)
+
+# ----------------------------
+# 4. audience_demographics
+# ----------------------------
+audience_list = []
+audience_id_counter = 1
+
+for influencer in influencers:
+    num_segments = random.randint(2, 5)
+    selected_countries = random.sample(COUNTRIES, k=num_segments)
+    for country in selected_countries:
+        audience_list.append({
+            "audience_id": audience_id_counter,
+            "influencer_id": influencer["influencer_id"],
+            "age_group": random.choice(AGE_GROUPS),
+            "gender": random.choice(GENDERS),
+            "country": country,
+            "percentage": round(random.uniform(5, 50), 2)
+        })
+        audience_id_counter += 1
+
+df_audience = pd.DataFrame(audience_list)
+df_audience.to_csv(os.path.join(output_folder, "audience_demographics.csv"), index=False)
+
+print(f"Realistic synthetic CSV files generated in {output_folder}/")
+
