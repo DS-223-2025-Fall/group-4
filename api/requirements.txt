@@ -4,6 +4,7 @@ Faker>=23.0
 pydantic>=2.11
 
 psycopg2-binary>=2.9
+psycopg2==2.9.10
 python-dotenv>=1.0
 SQLAlchemy>=2.0
 
@@ -11,3 +12,8 @@ fastapi>=0.105
 uvicorn>=0.25
 
 python-multipart>=0.0.6
+fastapi==0.89.1
+uvicorn==0.20.0
+pytz==2024.2
+six==1.16.0
+typing_extensions==4.12.2
