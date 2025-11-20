@@ -16,7 +16,7 @@ services:
       timeout: 10s
       retries: 5
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data
+      - ./Predictfluence/postgres_data:/var/lib/postgresql/data
             
   pgadmin:  
     container_name: pgadmin
@@ -27,16 +27,16 @@ services:
     ports:
       - 5050:80
     volumes:
-      - ./pgadmin_data:/var/lib/pgadmin
+      - ./Predictfluence/pgadmin_data:/var/lib/pgadmin
     depends_on: 
       - db
 
   api:
     build:
-      context: ./api
+      context: ./Predictfluence/api
       dockerfile: Dockerfile
     volumes:
-      - ./api:/api
+      - ./Predictfluence/api:/api
     ports:
       - 8008:8000
     environment:
@@ -47,10 +47,10 @@ services:
   app:
     container_name: streamlit_app
     build:
-      context: ./app
+      context: ./Predictfluence/app
       dockerfile: Dockerfile
     volumes:
-      - ./app:/app
+      - ./Predictfluence/app:/app
     ports:
       - 8501:8501
     environment:
