@@ -4,10 +4,9 @@ nav:
   - Home: index.md
   # - Presentation: index1.html
   - Problem Definition: problem_definition.md
-  # - ETL: etl.md
-  # - API: api.md
-  # - APP: app.md
-  # - API models: api_models.md
+  - ETL: etl.md
+  - API: api.md
+  - APP: app.md
 
 theme:
   name: material
