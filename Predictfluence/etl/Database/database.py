@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import sqlalchemy as sql
 import sqlalchemy.ext.declarative as declarative
 import sqlalchemy.orm as orm
+from models import Base 
 
 load_dotenv(".env")
 
@@ -17,7 +18,6 @@ if not DATABASE_URL:
 
 engine = sql.create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative.declarative_base()
 
 
 def get_db():
@@ -29,3 +29,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def create_tables():
+    from models import Base
+    Base.metadata.create_all(bind=engine)

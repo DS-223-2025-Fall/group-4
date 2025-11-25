@@ -1,11 +1,19 @@
 from Database.models import InfluencerDB
 from Database.schema import Influencer, InfluencerCreate
-from Database.database import get_db
+from Database.database import get_db, create_tables
 
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Depends, HTTPException
 
 app = FastAPI(title="Influencer Analytics Backend - Milestone 2")
+
+
+@app.on_event("startup")
+def startup_event():
+    """
+    Ensure all database tables exist when the API container starts.
+    """
+    create_tables()
 
 # -----------------------------
 # GET Request - Retrieve influencer by ID
