@@ -252,4 +252,3 @@ class CampaignContent(CampaignContentBase):
 
     class Config:
         orm_mode = True
-

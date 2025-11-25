@@ -3,7 +3,6 @@ SQLAlchemy ORM models that mirror the Predictfluence ERD.
 """
 
 from datetime import datetime
-
 from sqlalchemy import (
     Boolean,
     Column,
@@ -15,9 +14,10 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_base, relationship
 
-from Database.database import Base
+
+Base = declarative_base()
 
 
 class InfluencerDB(Base):

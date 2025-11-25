@@ -47,11 +47,9 @@ CAMPAIGN_STATUS = ["planned", "active", "completed"]
 # ----------------------------
 # OUTPUT FOLDER
 # ----------------------------
-csv_folder = os.getenv("CSV_FOLDER", "csv_data")
-if not os.path.isabs(csv_folder):
-    csv_folder = os.path.join(os.getcwd(), csv_folder)
-os.makedirs(csv_folder, exist_ok=True)
-output_folder = csv_folder
+script_dir = os.path.dirname(os.path.abspath(__file__))
+output_folder = os.path.join(script_dir, os.getenv("CSV_FOLDER", "data"))
+os.makedirs(output_folder, exist_ok=True)
 
 # ----------------------------
 # 1. influencers

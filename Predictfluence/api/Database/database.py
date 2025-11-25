@@ -11,12 +11,11 @@ import sqlalchemy.orm as orm
 
 load_dotenv(".env")
 
-# Build the SQLAlchemy engine using the DATABASE_URL env var
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL environment variable is not set")
 
-engine = sql.create_engine(DATABASE_URL)
+engine = sql.create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative.declarative_base()
 
