@@ -16,7 +16,7 @@ services:
       timeout: 10s
       retries: 5
     volumes:
-      - ./Predictfluence/postgres_data:/var/lib/postgresql/data
+      - ./Predictfluence/postgres_data:/var/lib/postgresql
             
   pgadmin:  
     container_name: pgadmin
