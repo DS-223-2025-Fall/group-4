@@ -57,3 +57,17 @@ services:
       - API_URL=http://api:8000
     depends_on:
       - api
+
+  ds:
+    container_name: ds_service
+    build:
+      context: ./Predictfluence/ds
+      dockerfile: Dockerfile
+    volumes:
+      - ./Predictfluence/ds:/ds
+    ports:
+      - 8010:8010
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    depends_on:
+      - db

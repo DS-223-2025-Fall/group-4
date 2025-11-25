@@ -1,15 +1,16 @@
 """
-Database Configuration
+Database configuration for the DS service.
 """
 
 import os
 
 from dotenv import load_dotenv
 import sqlalchemy as sql
-import sqlalchemy.ext.declarative as declarative
 import sqlalchemy.orm as orm
+
 from .models import Base
 
+# Load environment variables from the local .env file
 load_dotenv(".env")
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -30,8 +31,12 @@ def get_db():
     finally:
         db.close()
 
+
 def create_tables():
-    # Import inside the function to avoid circular imports when FastAPI loads dependencies
-    from .models import Base
+    """
+    Ensure all ORM tables exist.
+    """
+    from .models import Base  # Local import to avoid circular imports
 
     Base.metadata.create_all(bind=engine)
+
