@@ -1,8 +1,6 @@
 """
 SQLAlchemy ORM models that mirror the Predictfluence ERD.
 """
-
-from datetime import datetime
 from sqlalchemy import (
     Boolean,
     Column,
@@ -13,6 +11,8 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Index,
+    func
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -20,6 +20,24 @@ from sqlalchemy.orm import declarative_base, relationship
 Base = declarative_base()
 
 
+# ============================================================
+# Users
+# ============================================================
+class UserDB(Base):
+    __tablename__ = "users"
+
+    user_id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role = Column(String, nullable=True)
+    company = Column(String, nullable=True)
+    full_name = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.timezone('utc', func.now()))
+
+
+# ============================================================
+# Influencers
+# ============================================================
 class InfluencerDB(Base):
     __tablename__ = "influencers"
 
@@ -29,7 +47,12 @@ class InfluencerDB(Base):
     platform = Column(String, nullable=False)
     follower_count = Column(Integer, nullable=False)
     category = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), server_default=func.timezone('utc', func.now()))
+
+    __table_args__ = (
+        Index("idx_influencer_platform_category_followers",
+              "platform", "category", "follower_count"),
+    )
 
     content = relationship(
         "ContentDB", back_populates="influencer", cascade="all, delete-orphan"
@@ -53,6 +76,9 @@ class InfluencerDB(Base):
     )
 
 
+# ============================================================
+# Content
+# ============================================================
 class ContentDB(Base):
     __tablename__ = "content"
 
@@ -65,6 +91,10 @@ class ContentDB(Base):
     post_date = Column(Date, nullable=True)
     caption = Column(Text, nullable=True)
     url = Column(String, nullable=True)
+
+    __table_args__ = (
+        Index("idx_content_post_date_content_type", "post_date", "content_type"),
+    )
 
     influencer = relationship("InfluencerDB", back_populates="content")
     engagement = relationship(
@@ -81,6 +111,9 @@ class ContentDB(Base):
     )
 
 
+# ============================================================
+# Engagement
+# ============================================================
 class EngagementDB(Base):
     __tablename__ = "engagement"
 
@@ -95,6 +128,9 @@ class EngagementDB(Base):
     content = relationship("ContentDB", back_populates="engagement")
 
 
+# ============================================================
+# Audience Demographics
+# ============================================================
 class AudienceDemographicsDB(Base):
     __tablename__ = "audience_demographics"
 
@@ -107,9 +143,16 @@ class AudienceDemographicsDB(Base):
     country = Column(String, nullable=True)
     percentage = Column(Float, default=0.0)
 
+    __table_args__ = (
+        Index("idx_audience_age_gender_country", "age_group", "gender", "country"),
+    )
+
     influencer = relationship("InfluencerDB", back_populates="audiences")
 
 
+# ============================================================
+# Fact Influencer Performance
+# ============================================================
 class FactInfluencerPerformanceDB(Base):
     __tablename__ = "fact_influencer_performance"
 
@@ -129,6 +172,9 @@ class FactInfluencerPerformanceDB(Base):
     influencer = relationship("InfluencerDB", back_populates="fact_performance")
 
 
+# ============================================================
+# Fact Content Features
+# ============================================================
 class FactContentFeaturesDB(Base):
     __tablename__ = "fact_content_features"
 
@@ -146,11 +192,14 @@ class FactContentFeaturesDB(Base):
     influencer = relationship("InfluencerDB", back_populates="fact_content_features")
 
 
+# ============================================================
+# Prediction Logs
+# ============================================================
 class PredictionLogDB(Base):
     __tablename__ = "prediction_logs"
 
     log_id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime(timezone=True), server_default=func.timezone('utc', func.now()))
     content_id = Column(Integer, ForeignKey("content.content_id"), nullable=False)
     influencer_id = Column(
         Integer, ForeignKey("influencers.influencer_id"), nullable=False
@@ -162,6 +211,9 @@ class PredictionLogDB(Base):
     influencer = relationship("InfluencerDB", back_populates="prediction_logs")
 
 
+# ============================================================
+# API Logs
+# ============================================================
 class APILogDB(Base):
     __tablename__ = "api_logs"
 
@@ -169,9 +221,12 @@ class APILogDB(Base):
     user = Column(String, nullable=False)
     endpoint = Column(String, nullable=False)
     status = Column(String, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime(timezone=True), server_default=func.timezone('utc', func.now()))
 
 
+# ============================================================
+# Brands
+# ============================================================
 class BrandDB(Base):
     __tablename__ = "brands"
 
@@ -179,13 +234,16 @@ class BrandDB(Base):
     name = Column(String, nullable=False)
     industry = Column(String, nullable=True)
     country = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), server_default=func.timezone('utc', func.now()))
 
     campaigns = relationship(
         "CampaignDB", back_populates="brand", cascade="all, delete-orphan"
     )
 
 
+# ============================================================
+# Campaigns
+# ============================================================
 class CampaignDB(Base):
     __tablename__ = "campaigns"
 
@@ -197,7 +255,12 @@ class CampaignDB(Base):
     end_date = Column(Date, nullable=True)
     budget = Column(Float, default=0.0)
     status = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    spend_to_date = Column(Float, default=0.0)
+    created_at = Column(DateTime(timezone=True), server_default=func.timezone('utc', func.now()))
+
+    __table_args__ = (
+        Index("idx_campaign_status_dates", "status", "start_date", "end_date"),
+    )
 
     brand = relationship("BrandDB", back_populates="campaigns")
     campaign_content = relationship(
@@ -205,6 +268,9 @@ class CampaignDB(Base):
     )
 
 
+# ============================================================
+# Campaign Content
+# ============================================================
 class CampaignContentDB(Base):
     __tablename__ = "campaign_content"
 
@@ -213,6 +279,7 @@ class CampaignContentDB(Base):
     content_id = Column(Integer, ForeignKey("content.content_id"), nullable=False)
     role = Column(String, nullable=True)
     is_paid = Column(Boolean, default=False)
+    cost = Column(Float, default=0.0)
 
     campaign = relationship("CampaignDB", back_populates="campaign_content")
     content = relationship("ContentDB", back_populates="campaign_links")

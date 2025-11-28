@@ -1,7 +1,29 @@
 from datetime import date, datetime
 from typing import Optional
-
 from pydantic import BaseModel
+
+
+# -----------------------------
+# Users
+# -----------------------------
+class UserBase(BaseModel):
+    email: str
+    hashed_password: str
+    role: Optional[str] = None
+    company: Optional[str] = None
+    full_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+class UserCreate(UserBase):
+    """Payload for creating a user."""
+
+
+class User(UserBase):
+    user_id: int
+
+    class Config:
+        orm_mode = True
 
 
 # -----------------------------
@@ -219,6 +241,7 @@ class CampaignBase(BaseModel):
     end_date: Optional[date] = None
     budget: Optional[float] = 0.0
     status: Optional[str] = None
+    spend_to_date: Optional[float] = 0.0
     created_at: Optional[datetime] = None
 
 
@@ -241,6 +264,7 @@ class CampaignContentBase(BaseModel):
     content_id: int
     role: Optional[str] = None
     is_paid: Optional[bool] = False
+    cost: Optional[float] = 0.0
 
 
 class CampaignContentCreate(CampaignContentBase):

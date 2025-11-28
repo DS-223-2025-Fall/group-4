@@ -177,4 +177,22 @@ for brand in brands:
 df_campaigns = pd.DataFrame(campaigns)
 df_campaigns.to_csv(os.path.join(output_folder, "campaigns.csv"), index=False)
 
+# ----------------------------
+# 7. users
+# ----------------------------
+users = []
+NUM_USERS = 10
+for i in range(1, NUM_USERS + 1):
+    users.append({
+        "user_id": i,
+        "email": fake.unique.email(),
+        "hashed_password": fake.password(length=12),
+        "role": random.choice(["admin", "analyst", "viewer"]),
+        "company": fake.company(),
+        "full_name": fake.name(),
+        "created_at": fake.date_this_decade()
+    })
+df_users = pd.DataFrame(users)
+df_users.to_csv(os.path.join(output_folder, "users.csv"), index=False)
+
 print(f"Realistic synthetic CSV files generated in {output_folder}/")
