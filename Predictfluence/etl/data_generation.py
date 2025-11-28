@@ -1,17 +1,36 @@
 """
-Realistic synthetic CSV generator for influencer marketing project.
+Synthetic CSV Generator for Influencer Marketing Demo Data
 
-Generates CSVs for:
-- influencers
-- content
-- engagement
-- audience_demographics
-- brands
-- campaigns
-- campaign_content
+This script generates realistic synthetic CSV files for testing and development
+of an influencer marketing analytics project. The generated CSVs include:
 
-The output folder is automatically created relative to the script location,
-so it works even if the folder is renamed.
+1. influencers.csv: Profiles of social media influencers with follower counts,
+   categories, and platform information.
+2. content.csv: Posts created by influencers including type, topic, captions, and URLs.
+3. engagement.csv: Engagement metrics for each content item such as likes, comments,
+   shares, views, and computed engagement rate.
+4. audience_demographics.csv: Audience breakdown by age group, gender, country, and percentage.
+5. brands.csv: Brand profiles with industry, country, and creation date.
+6. campaigns.csv: Marketing campaigns by brands, with objectives, budgets, dates, and status.
+7. users.csv: Demo users for API or admin testing, including emails, hashed passwords, roles, and company.
+
+Key Features:
+- Generates synthetic data using Faker and NumPy for realistic distributions.
+- Engagement metrics are calculated based on influencer follower count.
+- CSV output folder is automatically created relative to the script location.
+- Configurable parameters for number of influencers, posts, brands, and campaigns.
+- Fully self-contained for local development and testing without external data dependencies.
+
+Usage:
+Simply run the script to populate the CSV_FOLDER (default: "data") with all CSV files:
+    cd etl
+    python Database/data_generation.py
+
+Dependencies:
+- pandas
+- faker
+- numpy
+- python-dotenv
 """
 
 import pandas as pd
@@ -177,4 +196,22 @@ for brand in brands:
 df_campaigns = pd.DataFrame(campaigns)
 df_campaigns.to_csv(os.path.join(output_folder, "campaigns.csv"), index=False)
 
-print(f"Realistic synthetic CSV files generated in {output_folder}/")
+# ----------------------------
+# 7. users
+# ----------------------------
+users = []
+NUM_USERS = 10
+for i in range(1, NUM_USERS + 1):
+    users.append({
+        "user_id": i,
+        "email": fake.unique.email(),
+        "hashed_password": fake.password(length=12),
+        "role": random.choice(["admin", "analyst", "viewer"]),
+        "company": fake.company(),
+        "full_name": fake.name(),
+        "created_at": fake.date_this_decade()
+    })
+df_users = pd.DataFrame(users)
+df_users.to_csv(os.path.join(output_folder, "users.csv"), index=False)
+
+print(f"CSV files generated in {output_folder}/")

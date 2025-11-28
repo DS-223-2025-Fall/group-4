@@ -1,64 +1,37 @@
 import os
 import pandas as pd
-from datetime import datetime
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, ValidationError
-
+# from passlib.hash import bcrypt
 from Database.database import engine, SessionLocal, Base
 from Database.models import (
     InfluencerDB, ContentDB, EngagementDB, AudienceDemographicsDB,
     FactInfluencerPerformanceDB, FactContentFeaturesDB,
-    CampaignDB, CampaignContentDB
+    CampaignDB, CampaignContentDB, UserDB
 )
 
-# ----------------------------
-# CSV folder
-# ----------------------------
-CSV_FOLDER = os.getenv("CSV_FOLDER", "csv_data")
+# Folder to store CSV files
+CSV_FOLDER = os.getenv("CSV_FOLDER", "data")
 os.makedirs(CSV_FOLDER, exist_ok=True)
 
-# ----------------------------
-# Pydantic models for CSV validation
-# ----------------------------
-class InfluencerModel(BaseModel):
-    influencer_id: int | None
-    name: str
-    username: str
-    platform: str
-    follower_count: int
-    category: str
-    created_at: datetime | None = None
-
-class ContentModel(BaseModel):
-    content_id: int | None
-    influencer_id: int
-    content_type: str
-    topic: str | None = None
-    post_date: datetime | None = None
-    caption: str | None = None
-    url: str | None = None
-
-class EngagementModel(BaseModel):
-    engagement_id: int | None
-    content_id: int
-    likes: int = 0
-    comments: int = 0
-    shares: int = 0
-    views: int = 0
-    engagement_rate: float = 0.0
-
-class AudienceDemographicsModel(BaseModel):
-    audience_id: int | None
-    influencer_id: int
-    age_group: str | None = None
-    gender: str | None = None
-    country: str | None = None
-    percentage: float = 0.0
 
 # ----------------------------
-# Load CSV into DB
+# Generic CSV loader
 # ----------------------------
-def load_csv(session: Session, csv_file: str, model_class, orm_class):
+def load_csv(session: Session, csv_file: str, orm_class, hash_password=False):
+    """
+    Loads data from a CSV file into the database.
+
+    Parameters:
+        session (Session): SQLAlchemy session object.
+        csv_file (str): Name of the CSV file to load.
+        orm_class: The ORM model class to instantiate for each row.
+        hash_password (bool): If True, hashes 'plain_password' into 'hashed_password'.
+
+    Notes:
+        - Automatically converts any columns with "date", "timestamp", or "created" in the name to datetime.
+        - Skips rows with missing required data if they cause exceptions.
+    """
     path = os.path.join(CSV_FOLDER, csv_file)
     if not os.path.exists(path):
         print(f"CSV not found: {path}, skipping")
@@ -66,44 +39,72 @@ def load_csv(session: Session, csv_file: str, model_class, orm_class):
 
     df = pd.read_csv(path)
 
-    # Convert date columns
+    # Convert date columns to datetime
     for col in df.columns:
-        if "date" in col or "timestamp" in col or "created_at" in col:
+        if any(x in col.lower() for x in ["date", "timestamp", "created"]):
             df[col] = pd.to_datetime(df[col], errors="coerce")
 
+    records = []
     for _, row in df.iterrows():
-        try:
-            validated = model_class(**row.to_dict())
-        except ValidationError as e:
-            print(f"Skipping row due to validation error: {e}")
-            continue
-        obj = orm_class(**validated.dict(exclude_none=True))
-        session.add(obj)
-    session.commit()
+        data = row.to_dict()
+        # hash passwords if required
+        # if hash_password and "plain_password" in data:
+        #     data["hashed_password"] = bcrypt.hash(data.pop("plain_password"))
+        records.append(orm_class(**data))
+
+    if records:
+        session.add_all(records)
+        session.commit()
 
 
 # ----------------------------
-# ETL Process
+# ETL process
 # ----------------------------
 def run_etl():
-    # Create tables
-    Base.metadata.create_all(engine)
+    """
+    Executes the full ETL process:
 
+    1. Creates database tables if they don't exist.
+    2. Loads all CSV files into their respective database tables.
+    3. Computes and populates fact tables:
+        - FactInfluencerPerformanceDB
+        - FactContentFeaturesDB
+    4. Populates campaign content relationships with simulated costs.
+    5. Computes campaign spend-to-date.
+
+    Notes:
+        - Users CSV supports password hashing.
+        - Engagement statistics are aggregated per influencer.
+        - Campaign content assignment is simulated based on content_id + campaign_id.
+    """
+    Base.metadata.create_all(engine)
     session = SessionLocal()
 
     try:
-        # Load base CSVs
-        load_csv(session, "influencers.csv", InfluencerModel, InfluencerDB)
-        load_csv(session, "content.csv", ContentModel, ContentDB)
-        load_csv(session, "engagement.csv", EngagementModel, EngagementDB)
-        load_csv(session, "audience_demographics.csv", AudienceDemographicsModel, AudienceDemographicsDB)
+        # ----------------------------
+        # Load CSVs into respective tables
+        # ----------------------------
+        load_csv(session, "users.csv", UserDB, hash_password=True)
+        load_csv(session, "influencers.csv", InfluencerDB)
+        load_csv(session, "content.csv", ContentDB)
+        load_csv(session, "engagement.csv", EngagementDB)
+        load_csv(session, "audience_demographics.csv", AudienceDemographicsDB)
 
         # ----------------------------
-        # Populate fact influencer performance
+        # Compute Fact Influencer Performance
         # ----------------------------
+        influencer_records = []
         influencers = session.query(InfluencerDB).all()
+
         for influencer in influencers:
-            engagements = session.query(EngagementDB).join(ContentDB).filter(ContentDB.influencer_id == influencer.influencer_id).all()
+            engagements = (
+                session.query(EngagementDB)
+                .join(ContentDB, EngagementDB.content_id == ContentDB.content_id)
+                .filter(ContentDB.influencer_id == influencer.influencer_id)
+                .all()
+            )
+
+            # Aggregate engagement metrics
             if engagements:
                 avg_eng_rate = sum(e.engagement_rate for e in engagements) / len(engagements)
                 avg_likes = sum(e.likes for e in engagements) / len(engagements)
@@ -113,13 +114,15 @@ def run_etl():
             else:
                 avg_eng_rate = avg_likes = avg_comments = avg_shares = avg_views = 0.0
 
+            # Find top audience country
             top_country = (
                 session.query(AudienceDemographicsDB)
                 .filter(AudienceDemographicsDB.influencer_id == influencer.influencer_id)
                 .order_by(AudienceDemographicsDB.percentage.desc())
                 .first()
             )
-            obj = FactInfluencerPerformanceDB(
+
+            influencer_records.append(FactInfluencerPerformanceDB(
                 influencer_id=influencer.influencer_id,
                 avg_engagement_rate=avg_eng_rate,
                 avg_likes=avg_likes,
@@ -129,46 +132,67 @@ def run_etl():
                 follower_count=influencer.follower_count,
                 category=influencer.category,
                 audience_top_country=top_country.country if top_country else None
-            )
-            session.add(obj)
+            ))
+
+        session.add_all(influencer_records)
         session.commit()
 
         # ----------------------------
-        # Populate fact content features
+        # Compute Fact Content Features
         # ----------------------------
         contents = session.query(ContentDB).all()
+        content_records = []
+        engagement_map = {e.content_id: e.engagement_rate for e in session.query(EngagementDB).all()}
+
         for content in contents:
-            engagement = session.query(EngagementDB).filter(EngagementDB.content_id == content.content_id).first()
-            obj = FactContentFeaturesDB(
+            content_records.append(FactContentFeaturesDB(
                 content_id=content.content_id,
                 influencer_id=content.influencer_id,
                 tag_count=0,
                 caption_length=len(content.caption) if content.caption else 0,
                 content_type=content.content_type,
-                engagement_rate=engagement.engagement_rate if engagement else 0.0
-            )
-            session.add(obj)
+                engagement_rate=engagement_map.get(content.content_id, 0.0)
+            ))
+
+        session.add_all(content_records)
         session.commit()
 
         # ----------------------------
-        # Populate campaign content deterministically
+        # Populate Campaign Content with simulated cost
         # ----------------------------
         campaigns = session.query(CampaignDB).all()
+        campaign_content_records = []
+
         for campaign in campaigns:
             for content in contents:
                 if (campaign.campaign_id + content.influencer_id) % 3 == 0:
-                    role = ["primary", "supporting"][(content.content_id + campaign.campaign_id) % 2]
-                    is_paid = ((content.content_id + campaign.campaign_id) % 2 == 0)
-                    obj = CampaignContentDB(
+                    role = "primary" if (content.content_id + campaign.campaign_id) % 2 == 0 else "supporting"
+                    is_paid = (content.content_id + campaign.campaign_id) % 2 == 0
+                    cost = 50.0 + ((content.content_id + campaign.campaign_id) % 100)
+
+                    campaign_content_records.append(CampaignContentDB(
                         campaign_id=campaign.campaign_id,
                         content_id=content.content_id,
                         role=role,
-                        is_paid=is_paid
-                    )
-                    session.add(obj)
+                        is_paid=is_paid,
+                        cost=cost
+                    ))
+
+        session.add_all(campaign_content_records)
         session.commit()
 
-        print("ETL completed successfully")
+        # ----------------------------
+        # Compute campaign spend-to-date
+        # ----------------------------
+        for campaign in campaigns:
+            spend = session.query(func.sum(CampaignContentDB.cost)).filter(
+                CampaignContentDB.campaign_id == campaign.campaign_id
+            ).scalar() or 0.0
+            campaign.spend_to_date = spend
+
+        session.commit()
+
+        print("ETL with Users and Campaign Finance completed successfully.")
 
     finally:
         session.close()

@@ -1,0 +1,11 @@
+campaign_id,brand_id,name,objective,start_date,end_date,budget,status,created_at
+1,1,Dixon-Diaz Campaign 1,Sales,2025-05-28,2025-07-09,36066.01,planned,2022-05-06
+2,1,Dixon-Diaz Campaign 2,Engagement,2025-10-21,2025-12-18,49541.7,planned,2020-11-05
+3,1,Dixon-Diaz Campaign 3,Sales,2025-05-28,2025-06-13,17264.01,active,2021-02-26
+4,2,"Simmons, Cole and Soto Campaign 4",Brand Awareness,2025-02-08,2025-02-19,16078.54,completed,2025-03-15
+5,2,"Simmons, Cole and Soto Campaign 5",Engagement,2025-11-04,2025-12-26,29944.47,completed,2021-11-22
+6,3,Warner-Walker Campaign 6,Sales,2025-01-13,2025-01-27,15443.51,active,2025-11-10
+7,4,Larson PLC Campaign 7,Brand Awareness,2025-09-05,2025-10-01,46802.11,planned,2023-06-20
+8,4,Larson PLC Campaign 8,Sales,2025-05-01,2025-06-16,13706.38,planned,2025-05-25
+9,4,Larson PLC Campaign 9,Brand Awareness,2025-03-22,2025-05-12,44854.51,completed,2020-01-11
+10,5,Brown LLC Campaign 10,Engagement,2025-01-29,2025-03-28,40523.77,planned,2025-08-18
