@@ -7,7 +7,7 @@ from Database.database import engine, SessionLocal, Base
 from Database.models import (
     InfluencerDB, ContentDB, EngagementDB, AudienceDemographicsDB,
     FactInfluencerPerformanceDB, FactContentFeaturesDB,
-    CampaignDB, CampaignContentDB, UserDB
+    CampaignDB, CampaignContentDB, UserDB, BrandDB
 )
 
 # Folder to store CSV files
@@ -85,10 +85,13 @@ def run_etl():
         # Load CSVs into respective tables
         # ----------------------------
         load_csv(session, "users.csv", UserDB, hash_password=True)
+        load_csv(session, "brands.csv", BrandDB)
+        load_csv(session, "campaigns.csv", CampaignDB)
         load_csv(session, "influencers.csv", InfluencerDB)
         load_csv(session, "content.csv", ContentDB)
         load_csv(session, "engagement.csv", EngagementDB)
         load_csv(session, "audience_demographics.csv", AudienceDemographicsDB)
+        load_csv(session, "campaign_content.csv", CampaignContentDB)
 
         # ----------------------------
         # Compute Fact Influencer Performance
@@ -157,42 +160,7 @@ def run_etl():
         session.add_all(content_records)
         session.commit()
 
-        # ----------------------------
-        # Populate Campaign Content with simulated cost
-        # ----------------------------
-        campaigns = session.query(CampaignDB).all()
-        campaign_content_records = []
-
-        for campaign in campaigns:
-            for content in contents:
-                if (campaign.campaign_id + content.influencer_id) % 3 == 0:
-                    role = "primary" if (content.content_id + campaign.campaign_id) % 2 == 0 else "supporting"
-                    is_paid = (content.content_id + campaign.campaign_id) % 2 == 0
-                    cost = 50.0 + ((content.content_id + campaign.campaign_id) % 100)
-
-                    campaign_content_records.append(CampaignContentDB(
-                        campaign_id=campaign.campaign_id,
-                        content_id=content.content_id,
-                        role=role,
-                        is_paid=is_paid,
-                        cost=cost
-                    ))
-
-        session.add_all(campaign_content_records)
-        session.commit()
-
-        # ----------------------------
-        # Compute campaign spend-to-date
-        # ----------------------------
-        for campaign in campaigns:
-            spend = session.query(func.sum(CampaignContentDB.cost)).filter(
-                CampaignContentDB.campaign_id == campaign.campaign_id
-            ).scalar() or 0.0
-            campaign.spend_to_date = spend
-
-        session.commit()
-
-        print("ETL with Users and Campaign Finance completed successfully.")
+        print("ETL completed successfully.")
 
     finally:
         session.close()

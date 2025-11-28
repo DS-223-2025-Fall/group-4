@@ -72,8 +72,11 @@ def startup_event():
 
 
 @app.get("/health")
-def healthcheck() -> dict[str, bool]:
-    return {"status": "ok", "model_ready": model_bundle is not None}
+def healthcheck() -> dict[str, object]:
+    """
+    Return service health; use a broad return type to match the mixed value types.
+    """
+    return {"status": "ok", "model_ready": bool(model_bundle is not None)}
 
 
 @app.post("/train", response_model=TrainResponse)

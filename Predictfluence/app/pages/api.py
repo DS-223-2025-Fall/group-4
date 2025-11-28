@@ -108,6 +108,8 @@ def auth_login(email: str, password: str):
         return resp.json()
 
     result = _handle_request(_do_login)
-    if result and isinstance(result, dict) and 'token' in result:
-        st.session_state.auth_token = result['token']
+    if result and isinstance(result, dict):
+        token = result.get('access_token') or result.get('token')
+        if token:
+            st.session_state.auth_token = token
     return result

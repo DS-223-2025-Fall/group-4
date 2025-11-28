@@ -10,9 +10,13 @@ def render(api_url: str):
     if st.session_state.get('demo_mode'):
         campaigns = [{'id': 1, 'name': 'Summer Launch'}, {'id':2,'name':'Holiday Promo'}]
     else:
-        campaigns = api.get('/campaigns', params={'status':'active'}) or []
+        res = api.get('/campaigns', params={'status':'active'})
+        if isinstance(res, dict) and 'items' in res:
+            campaigns = res['items']
+        else:
+            campaigns = []
 
-    options = ["— none —"] + [f"{c['name']} (id:{c['id']})" for c in campaigns]
+    options = ["— none —"] + [f"{c['name']} (id:{c.get('campaign_id', c.get('id'))})" for c in campaigns]
     selected_campaign = st.selectbox("Select campaign", options)
     if selected_campaign == "— none —":
         st.info("Select a campaign to view detailed metrics.")
@@ -22,5 +26,16 @@ def render(api_url: str):
             cid = int(selected_campaign.split('id:')[-1].strip(')'))
         except Exception:
             cid = None
-        placeholder_section("Campaign Summary", f"Use GET {api_url}/campaigns/{cid}/summary to populate.")
-        placeholder_section("Influencer Performance", f"Use GET {api_url}/campaigns/{cid}/influencer-performance")
+        summary_ph = placeholder_section("Campaign Summary", f"GET {api_url}/campaigns/{cid}/summary")
+        perf_ph = placeholder_section("Influencer Performance", f"GET {api_url}/campaigns/{cid}/influencer-performance")
+
+        if not st.session_state.get('demo_mode') and cid:
+            summary = api.get(f'/campaigns/{cid}/summary')
+            if isinstance(summary, dict):
+                summary_ph.empty()
+                summary_ph.json(summary)
+
+            perf = api.get(f'/campaigns/{cid}/influencer-performance')
+            if isinstance(perf, list):
+                perf_ph.empty()
+                perf_ph.dataframe(perf)

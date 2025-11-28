@@ -290,7 +290,6 @@ class CampaignBase(BaseModel):
     end_date: Optional[date] = None
     budget: Optional[float] = 0.0
     status: Optional[str] = None
-    spend_to_date: Optional[float] = 0.0
     created_at: Optional[datetime] = None
 
 

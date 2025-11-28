@@ -8,7 +8,7 @@ def render(api_url: str):
     st.title("Dashboard")
     st.markdown("Overview • KPIs • Trend charts")
 
-    st.markdown("**How to hook API:** Replace the placeholder code below with requests to your API endpoints.")
+    st.markdown("**Data source:** hooked to backend APIs per docs/app.md.")
 
     # KPI row
     cols = st.columns(4)
@@ -17,9 +17,9 @@ def render(api_url: str):
     with cols[0]:
         value = "—"
         if not st.session_state.get('demo_mode'):
-            res = api.get('/campaigns?status=active')
-            if isinstance(res, list):
-                value = str(len(res))
+            res = api.get('/campaigns', params={'status': 'active'})
+            if isinstance(res, dict) and 'items' in res:
+                value = str(len(res['items']))
         else:
             value = "12"  # demo fallback
         kpi_card("Active Campaigns", value, "Data: GET /campaigns?status=active")
@@ -50,12 +50,11 @@ def render(api_url: str):
     with cols[3]:
         value = "—"
         if not st.session_state.get('demo_mode'):
-            res = api.get('/campaigns/summary')
-            if isinstance(res, dict) and 'avg_cost_per_influencer' in res:
-                value = f"${res['avg_cost_per_influencer']:.2f}"
+            # Aggregate cost KPI not yet available in backend; leave placeholder.
+            value = "—"
         else:
             value = "$128"
-        kpi_card("Avg Cost / Influencer", value, "Aggregated /campaigns/{id}/summary")
+        kpi_card("Avg Cost / Influencer", value, "Pending backend cost fields")
 
     st.markdown("### Trends")
 
@@ -70,9 +69,9 @@ def render(api_url: str):
         ph1.line_chart(df['engagement_rate'])
     else:
         res = api.get('/analytics/engagement', params={'range': '30d'})
-        if res:
+        if res and isinstance(res, dict) and 'series' in res:
             try:
-                df = pd.DataFrame(res)
+                df = pd.DataFrame(res['series'])
                 df = df.set_index(pd.to_datetime(df['date']))
                 ph1.empty()
                 ph1.line_chart(df['engagement_rate'])
@@ -87,10 +86,10 @@ def render(api_url: str):
         ph2.bar_chart(df2['engagement'])
     else:
         res = api.get('/analytics/top-campaigns', params={'limit': 5})
-        if res:
+        if res and isinstance(res, dict) and 'items' in res:
             try:
-                df2 = pd.DataFrame(res).set_index('campaign')
+                df2 = pd.DataFrame(res['items']).set_index('name')
                 ph2.empty()
-                ph2.bar_chart(df2['engagement'])
+                ph2.bar_chart(df2['metric_value'])
             except Exception:
                 ph2.write('Unexpected top-campaigns data format')

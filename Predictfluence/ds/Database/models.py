@@ -297,7 +297,6 @@ class CampaignDB(Base):
     end_date = Column(Date, nullable=True)
     budget = Column(Float, default=0.0)
     status = Column(String, nullable=True)
-    spend_to_date = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.timezone('utc', func.now()))
 
     __table_args__ = (

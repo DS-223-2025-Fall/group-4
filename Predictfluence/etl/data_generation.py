@@ -53,6 +53,7 @@ MAX_POSTS = 30
 NUM_BRANDS = 5
 MIN_CAMPAIGNS = 1
 MAX_CAMPAIGNS = 3
+MAX_LINKS_PER_CAMPAIGN = 8
 
 PLATFORMS = ["Instagram", "TikTok", "YouTube"]
 CATEGORIES = ["Beauty", "Fitness", "Tech", "Food", "Travel", "Gaming"]
@@ -197,7 +198,28 @@ df_campaigns = pd.DataFrame(campaigns)
 df_campaigns.to_csv(os.path.join(output_folder, "campaigns.csv"), index=False)
 
 # ----------------------------
-# 7. users
+# 7. campaign_content
+# ----------------------------
+campaign_links = []
+link_id = 1
+for campaign in campaigns:
+    # randomly attach some content rows to each campaign
+    eligible = random.sample(contents, k=min(len(contents), MAX_LINKS_PER_CAMPAIGN))
+    for content in eligible:
+        campaign_links.append({
+            "id": link_id,
+            "campaign_id": campaign["campaign_id"],
+            "content_id": content["content_id"],
+            "role": random.choice(["primary", "supporting"]),
+            "is_paid": random.choice([True, False]),
+            "cost": round(random.uniform(50, 800), 2)
+        })
+        link_id += 1
+df_campaign_content = pd.DataFrame(campaign_links)
+df_campaign_content.to_csv(os.path.join(output_folder, "campaign_content.csv"), index=False)
+
+# ----------------------------
+# 8. users
 # ----------------------------
 users = []
 NUM_USERS = 10

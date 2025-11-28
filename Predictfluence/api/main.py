@@ -7,12 +7,13 @@ demo flow until the dedicated users table is delivered by the DB developer.
 
 import os
 from datetime import date, datetime, timedelta
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 from fastapi import Depends, FastAPI, HTTPException, Query
-from sqlalchemy import Column, DateTime, Integer, String, func, or_, text
+from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from Database.database import create_tables, get_db
 from Database.models import (
@@ -28,6 +29,7 @@ from Database.models import (
     FactInfluencerPerformanceDB,
     InfluencerDB,
     PredictionLogDB,
+    UserDB,
 )
 from Database.schema import (
     AudienceDemographics,
@@ -71,22 +73,6 @@ from schemas import (
 )
 
 
-class UserDB(Base):
-    """
-    Lightweight user model to support demo auth. Assumes a `users` table exists.
-    """
-
-    __tablename__ = "users"
-
-    user_id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    role = Column(String, nullable=True)
-    company = Column(String, nullable=True)
-    full_name = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-
 API_TITLE = "Influencer Analytics Backend - Milestone 3"
 DS_URL = os.getenv("DS_URL", "http://ds:8010")
 
@@ -104,7 +90,7 @@ def trigger_training() -> Dict[str, Any]:
     """
     Proxy to the DS service training endpoint and return its JSON payload.
     """
-    url = f"{DS_SERVICE_URL.rstrip('/')}/train"
+    url = f"{DS_URL.rstrip('/')}/train"
     try:
         resp = requests.post(url, timeout=120)
     except requests.RequestException as exc:
@@ -134,7 +120,7 @@ def proxy_predict(payload: DSPredictPayload) -> Dict[str, Any]:
     """
     Proxy predict requests to the DS service and return its JSON payload.
     """
-    url = f"{DS_SERVICE_URL.rstrip('/')}/predict"
+    url = f"{DS_URL.rstrip('/')}/predict"
     try:
         resp = requests.post(url, json=payload.dict(), timeout=60)
     except requests.RequestException as exc:
@@ -144,14 +130,6 @@ def proxy_predict(payload: DSPredictPayload) -> Dict[str, Any]:
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     return resp.json()
-
-# -----------------------------
-# GET Request - Retrieve influencer by ID
-# -----------------------------
-@app.get("/influencers/{influencer_id}", response_model=Influencer)
-async def get_influencer(influencer_id: int, db: Session = Depends(get_db)):
-    """
-    Retrieve an influencer by their unique ID.
 
 # ---------------------------------------------------------------------------
 # Helpers

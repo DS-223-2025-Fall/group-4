@@ -44,11 +44,17 @@ def render(api_url: str):
     if run:
         payload = {
             'platform': None if platform=='All' else platform,
-            'audience_bucket': audience,
+            'audience_size_band': audience if audience != "Any" else None,
             'content_type': None if content_type=='Any' else content_type,
         }
         if st.session_state.get('demo_mode'):
             placeholder_section("Suggested Influencers", f"(demo) top suggestions appear here")
         else:
             res = api.post('/recommendations', payload)
-            placeholder_section("Suggested Influencers", f"Results from POST {api_url}/recommendations")
+            ph = placeholder_section("Suggested Influencers", f"Results from POST {api_url}/recommendations")
+            if isinstance(res, dict) and res.get('recommendations'):
+                ph.empty()
+                for rec in res['recommendations']:
+                    st.markdown(f"**{rec.get('influencer_name','')}** — {rec.get('platform','')}")
+                    st.write(f"Predicted engagement: {rec.get('predicted_engagement',0):.3f}")
+                    st.caption(rec.get('rationale',''))

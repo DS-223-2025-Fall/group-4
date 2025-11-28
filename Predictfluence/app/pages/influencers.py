@@ -5,10 +5,9 @@ import pandas as pd
 
 def render(api_url: str):
     st.title("Influencer Directory")
-    st.markdown("List and card views for influencers. Hook to `/influencers` endpoints.")
+    st.markdown("List and card views for influencers. Hooked to `/influencers` endpoints.")
 
-    st.write("View mode:")
-    mode = st.radio("", ["Table", "Cards"], horizontal=True)
+    mode = st.radio("View mode", ["Table", "Cards"], horizontal=True)
 
     # Filters
     with st.expander("Filters", expanded=True):
@@ -22,7 +21,7 @@ def render(api_url: str):
             st.experimental_rerun()
 
     if mode == "Table":
-        ph = placeholder_section("Influencer Table", "Call GET /influencers with filters and display pandas.DataFrame here.")
+        ph = placeholder_section("Influencer Table", "Data: GET /influencers with filters")
         if st.session_state.get('demo_mode'):
             df = pd.DataFrame([{'id':1,'name':'alice','platform':'Instagram','followers':12000,'category':'Beauty'},{'id':2,'name':'bob','platform':'TikTok','followers':54000,'category':'Gaming'}])
             ph.empty()
@@ -37,15 +36,15 @@ def render(api_url: str):
             }
             params = {k:v for k,v in params.items() if v is not None}
             res = api.get('/influencers', params=params)
-            if res:
+            if res and isinstance(res, dict) and 'items' in res:
                 try:
-                    df = pd.DataFrame(res)
+                    df = pd.DataFrame(res['items'])
                     ph.empty()
                     st.dataframe(df)
                 except Exception:
                     ph.write('Unexpected influencers data format')
     else:
-        ph = placeholder_section("Influencer Cards", "Render influencer cards in a responsive grid. Use columns to layout.")
+        ph = placeholder_section("Influencer Cards", "Render influencer cards in a responsive grid.")
         if st.session_state.get('demo_mode'):
             cols = st.columns(3)
             demo = [
@@ -60,4 +59,13 @@ def render(api_url: str):
                     st.write(f"{inf['followers']:,} followers")
         else:
             res = api.get('/influencers')
-            ph.write('Cards view requires frontend rendering of returned list')
+            if res and isinstance(res, dict) and res.get('items'):
+                items = res['items']
+                cols = st.columns(3)
+                for idx, inf in enumerate(items):
+                    with cols[idx % 3]:
+                        st.markdown(f"**{inf.get('name','')}**")
+                        st.write(inf.get('username',''))
+                        st.write(f"{inf.get('follower_count',0):,} followers")
+            else:
+                ph.write('No influencers found')
