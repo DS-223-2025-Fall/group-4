@@ -99,6 +99,60 @@ def startup_event() -> None:
     create_tables()
 
 
+@app.post("/train")
+def trigger_training() -> Dict[str, Any]:
+    """
+    Proxy to the DS service training endpoint and return its JSON payload.
+    """
+    url = f"{DS_SERVICE_URL.rstrip('/')}/train"
+    try:
+        resp = requests.post(url, timeout=120)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=503, detail=f"DS service unavailable: {exc}") from exc
+
+    if not resp.ok:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+    return resp.json()
+
+
+class DSPredictPayload(BaseModel):
+    """
+    Pass-through schema for DS predict requests.
+    """
+
+    follower_count: int
+    tag_count: int
+    caption_length: int
+    content_type: str
+    content_id: int | None = None
+    influencer_id: int | None = None
+
+
+@app.post("/predict")
+def proxy_predict(payload: DSPredictPayload) -> Dict[str, Any]:
+    """
+    Proxy predict requests to the DS service and return its JSON payload.
+    """
+    url = f"{DS_SERVICE_URL.rstrip('/')}/predict"
+    try:
+        resp = requests.post(url, json=payload.dict(), timeout=60)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=503, detail=f"DS service unavailable: {exc}") from exc
+
+    if not resp.ok:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+    return resp.json()
+
+# -----------------------------
+# GET Request - Retrieve influencer by ID
+# -----------------------------
+@app.get("/influencers/{influencer_id}", response_model=Influencer)
+async def get_influencer(influencer_id: int, db: Session = Depends(get_db)):
+    """
+    Retrieve an influencer by their unique ID.
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -1,32 +1,33 @@
 """
 Predictfluence DS service.
 
-Provides lightweight training and prediction endpoints that use the shared
-PostgreSQL database. Falls back to synthetic data when the database does not
-have enough rows to train a baseline model.
+Provides training and prediction endpoints backed by a shared PostgreSQL DB.
 """
 
 from datetime import datetime
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from sklearn.compose import ColumnTransformer
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, r2_score
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
 from sqlalchemy.orm import Session
 
 from Database.database import create_tables, get_db
 from Database.models import (
     ContentDB,
-    FactContentFeaturesDB,
     FactInfluencerPerformanceDB,
     PredictionLogDB,
+)
+from config import MIN_TRAINING_ROWS
+from train import (
+    FEATURE_COLUMNS,
+    ModelBundle,
+    load_latest_model,
+    load_training_data_from_db,
+    save_feature_importance,
+    save_model,
+    simulate_training_data,
+    train_model,
 )
 
 app = FastAPI(title="Predictfluence DS Service", version="0.1.0")
@@ -39,6 +40,7 @@ class TrainResponse(BaseModel):
     mae: Optional[float]
     model_version: str
     features: list[str]
+    top_features: list[str]
 
 
 class PredictRequest(BaseModel):
@@ -56,193 +58,63 @@ class PredictResponse(BaseModel):
     logged: bool
 
 
-class ModelBundle:
-    """
-    In-memory model artifact container to keep the FastAPI handlers simple.
-    """
-
-    def __init__(self, pipeline: Pipeline, version: str, features: list[str]):
-        self.pipeline = pipeline
-        self.version = version
-        self.features = features
-
-
 model_bundle: Optional[ModelBundle] = None
-
-
-def fetch_training_data(db: Session) -> pd.DataFrame:
-    """
-    Pull training data from the DB by joining fact tables.
-    """
-    rows = (
-        db.query(
-            FactContentFeaturesDB.content_id,
-            FactContentFeaturesDB.tag_count,
-            FactContentFeaturesDB.caption_length,
-            FactContentFeaturesDB.content_type,
-            FactContentFeaturesDB.engagement_rate,
-            FactInfluencerPerformanceDB.follower_count,
-        )
-        .join(
-            FactInfluencerPerformanceDB,
-            FactContentFeaturesDB.influencer_id == FactInfluencerPerformanceDB.influencer_id,
-        )
-        .all()
-    )
-
-    if not rows:
-        return pd.DataFrame()
-
-    return pd.DataFrame(
-        rows,
-        columns=[
-            "content_id",
-            "tag_count",
-            "caption_length",
-            "content_type",
-            "engagement_rate",
-            "follower_count",
-        ],
-    )
-
-
-def simulate_training_data(n_rows: int = 200) -> pd.DataFrame:
-    """
-    Create synthetic training data to allow the DS service to run in isolation.
-    """
-    rng = np.random.default_rng(seed=42)
-    content_types = ["Image", "Video", "Reel", "Story"]
-
-    follower_count = rng.lognormal(mean=10, sigma=0.8, size=n_rows).astype(int)
-    tag_count = rng.poisson(lam=3, size=n_rows)
-    caption_length = rng.integers(20, 220, size=n_rows)
-    content_type = rng.choice(content_types, size=n_rows, p=[0.35, 0.35, 0.2, 0.1])
-
-    base_rate = 0.5 / np.sqrt(np.maximum(follower_count, 1))
-    engagement_rate = (
-        base_rate
-        + 0.002 * tag_count
-        + 0.0008 * caption_length
-        + rng.normal(loc=0.0, scale=0.05, size=n_rows)
-    )
-    engagement_rate = np.clip(engagement_rate, 0.0, None)
-
-    return pd.DataFrame(
-        {
-            "content_id": np.arange(1, n_rows + 1),
-            "tag_count": tag_count,
-            "caption_length": caption_length,
-            "content_type": content_type,
-            "engagement_rate": engagement_rate,
-            "follower_count": follower_count,
-        }
-    )
-
-
-def train_baseline_model(data: pd.DataFrame) -> tuple[ModelBundle, float, float]:
-    """
-    Train a simple baseline regression model that predicts engagement_rate.
-    """
-    feature_cols = ["follower_count", "tag_count", "caption_length", "content_type"]
-    target_col = "engagement_rate"
-
-    X = data[feature_cols]
-    y = data[target_col]
-
-    preprocessor = ColumnTransformer(
-        [("content_type", OneHotEncoder(handle_unknown="ignore"), ["content_type"])],
-        remainder="passthrough",
-    )
-    pipeline = Pipeline(
-        [
-            ("preprocess", preprocessor),
-            ("model", LinearRegression()),
-        ]
-    )
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-
-    pipeline.fit(X_train, y_train)
-    preds = pipeline.predict(X_test)
-
-    r2 = float(r2_score(y_test, preds))
-    mae = float(mean_absolute_error(y_test, preds))
-
-    version = datetime.utcnow().strftime("baseline-%Y%m%d%H%M%S")
-    bundle = ModelBundle(pipeline=pipeline, version=version, features=feature_cols)
-    return bundle, r2, mae
 
 
 @app.on_event("startup")
 def startup_event():
     """
-    Ensure tables exist and warm up the model with synthetic data so
-    predictions work immediately.
+    Ensure tables exist and warm the in-memory model from disk or synthetic data.
     """
     create_tables()
 
-    global model_bundle
-    synthetic_data = simulate_training_data(200)
-    model_bundle, _, _ = train_baseline_model(synthetic_data)
+    _load_or_initialize_model()
 
 
 @app.get("/health")
-def healthcheck():
+def healthcheck() -> dict[str, bool]:
     return {"status": "ok", "model_ready": model_bundle is not None}
 
 
 @app.post("/train", response_model=TrainResponse)
-def train(db: Session = Depends(get_db)):
+def train(db: Session = Depends(get_db)) -> TrainResponse:
     """
-    Train the baseline model using DB data when available, otherwise synthetic data.
+    Train the model using DB data when available, otherwise synthetic data.
     """
-    global model_bundle
-
-    df = fetch_training_data(db)
+    df = load_training_data_from_db(db)
     used_synthetic = False
 
-    if df.empty or len(df) < 40:
-        df = simulate_training_data(300)
+    if len(df) < MIN_TRAINING_ROWS:
+        df = simulate_training_data(400)
         used_synthetic = True
 
-    model_bundle, r2, mae = train_baseline_model(df)
+    bundle, r2, mae = train_model(df)
+    save_model(bundle)
+    importance_df = save_feature_importance(bundle)
+    top_features = importance_df.head(5)["feature"].tolist() if not importance_df.empty else []
+
+    _set_model_bundle(bundle)
 
     return TrainResponse(
         n_rows=len(df),
         used_synthetic=used_synthetic,
         r2=r2,
         mae=mae,
-        model_version=model_bundle.version,
-        features=model_bundle.features,
+        model_version=bundle.version,
+        features=bundle.features,
+        top_features=top_features,
     )
 
 
 @app.post("/predict", response_model=PredictResponse)
-def predict(payload: PredictRequest, db: Session = Depends(get_db)):
+def predict(payload: PredictRequest, db: Session = Depends(get_db)) -> PredictResponse:
     """
     Generate an engagement_rate prediction. If the model has not been trained
     yet, train once on synthetic data to keep the API responsive.
     """
-    global model_bundle
-
-    if model_bundle is None:
-        synthetic = simulate_training_data(300)
-        model_bundle, _, _ = train_baseline_model(synthetic)
-
-    features = pd.DataFrame(
-        [
-            {
-                "follower_count": payload.follower_count,
-                "tag_count": payload.tag_count,
-                "caption_length": payload.caption_length,
-                "content_type": payload.content_type,
-            }
-        ]
-    )
-
-    pred = float(model_bundle.pipeline.predict(features)[0])
+    bundle = _load_or_initialize_model()
+    feature_values = build_feature_row(payload, db, bundle.features)
+    pred = float(bundle.pipeline.predict(feature_values)[0])
 
     logged = False
     content_id = payload.content_id
@@ -259,7 +131,7 @@ def predict(payload: PredictRequest, db: Session = Depends(get_db)):
                     content_id=content_id,
                     influencer_id=influencer_id or content.influencer_id,
                     predicted_engagement=pred,
-                    model_version=model_bundle.version,
+                    model_version=bundle.version,
                 )
             )
             db.commit()
@@ -267,6 +139,64 @@ def predict(payload: PredictRequest, db: Session = Depends(get_db)):
 
     return PredictResponse(
         predicted_engagement_rate=pred,
-        model_version=model_bundle.version,
+        model_version=bundle.version,
         logged=logged,
     )
+
+
+def build_feature_row(payload: PredictRequest, db: Session, feature_order: list[str]) -> pd.DataFrame:
+    """
+    Construct a single-row DataFrame in the expected feature order, enriching
+    with DB attributes when available.
+    """
+    category = None
+    audience_top_country = None
+    follower_count = payload.follower_count
+
+    if payload.influencer_id:
+        perf = (
+            db.query(FactInfluencerPerformanceDB)
+            .filter(FactInfluencerPerformanceDB.influencer_id == payload.influencer_id)
+            .first()
+        )
+        if perf:
+            follower_count = payload.follower_count or perf.follower_count
+            category = perf.category
+            audience_top_country = perf.audience_top_country
+
+    row = {
+        "follower_count": follower_count,
+        "tag_count": payload.tag_count,
+        "caption_length": payload.caption_length,
+        "content_type": payload.content_type,
+        "category": category or "Unknown",
+        "audience_top_country": audience_top_country or "Unknown",
+    }
+
+    return pd.DataFrame([row], columns=feature_order or FEATURE_COLUMNS)
+
+
+def _load_or_initialize_model() -> ModelBundle:
+    """
+    Load the latest model from disk, or train on synthetic data if none exist.
+    """
+    global model_bundle
+
+    latest = load_latest_model()
+    if latest and (model_bundle is None or latest.version != model_bundle.version):
+        model_bundle = latest
+
+    if model_bundle is None:
+        synthetic = simulate_training_data(400)
+        model_bundle, _, _ = train_model(synthetic)
+        save_model(model_bundle)
+
+    return model_bundle
+
+
+def _set_model_bundle(bundle: ModelBundle) -> None:
+    """
+    Update the global model bundle reference.
+    """
+    global model_bundle
+    model_bundle = bundle
