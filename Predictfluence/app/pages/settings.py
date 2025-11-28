@@ -1,9 +1,6 @@
-# pages/settings.py
-# pages/settings.py
-
 import streamlit as st
 from pages.components import placeholder_section
-
+from pages import api
 
 def render(api_url: str):
     st.title("Settings / Profile")
@@ -38,7 +35,23 @@ def render(api_url: str):
             placeholder="Enter your company name"
         )
 
-        st.form_submit_button("Save Changes")
+        submitted = st.form_submit_button("Save Changes")
+
+        if submitted:
+            payload = {
+                'full_name': full_name,
+                'email': email,
+                'role': role if role!='Select Role' else None,
+                'company': company
+            }
+            if st.session_state.get('demo_mode'):
+                st.success('Saved (demo)')
+            else:
+                res = api.put('/user/profile', payload)
+                if res is not None:
+                    st.success('Profile updated')
+                else:
+                    st.error('Failed to save profile')
 
     placeholder_section(
         "Update Profile Placeholder",
