@@ -1,3 +1,52 @@
+"""
+Pydantic Schemas for Predictfluence Influencer Marketing Project.
+
+This module defines Pydantic models for data validation and serialization
+in API requests and responses. The schemas mirror the SQLAlchemy ORM models
+and are used for input validation, API payloads, and response models.
+
+Key Concepts:
+- Base classes define common fields shared between Create and Read models.
+- `Create` classes define payloads for API input (e.g., POST requests).
+- Read/Response classes include database-generated fields (e.g., IDs) and
+  enable ORM compatibility via `orm_mode`.
+- Optional fields reflect nullable database columns or fields with defaults.
+
+Schemas / Models:
+- UserBase / UserCreate / User: Users with hashed passwords and roles.
+- InfluencerBase / InfluencerCreate / Influencer: Influencer metadata.
+- ContentBase / ContentCreate / Content: Individual posts by influencers.
+- EngagementBase / EngagementCreate / Engagement: Engagement metrics per content.
+- AudienceDemographicsBase / AudienceDemographicsCreate / AudienceDemographics: Influencer audience breakdown.
+- FactInfluencerPerformanceBase / FactInfluencerPerformanceCreate / FactInfluencerPerformance: Aggregated influencer performance.
+- FactContentFeaturesBase / FactContentFeaturesCreate / FactContentFeatures: Aggregated content features.
+- PredictionLogBase / PredictionLogCreate / PredictionLog: Model prediction logging.
+- APILogBase / APILogCreate / APILog: API request logging.
+- BrandBase / BrandCreate / Brand: Brands in campaigns.
+- CampaignBase / CampaignCreate / Campaign: Campaigns linked to brands.
+- CampaignContentBase / CampaignContentCreate / CampaignContent: Links content to campaigns with cost and role info.
+
+Usage:
+1. Use `Create` schemas to validate input payloads in FastAPI endpoints.
+2. Use response schemas (e.g., `User`, `Influencer`) to serialize ORM objects.
+3. Enable `orm_mode = True` in response schemas to work seamlessly with SQLAlchemy ORM objects.
+
+Example:
+    from Schemas import UserCreate, User
+    from fastapi import FastAPI, Depends
+    from sqlalchemy.orm import Session
+    from Database.database import get_db
+
+    app = FastAPI()
+
+    @app.post("/users/", response_model=User)
+    def create_user(user: UserCreate, db: Session = Depends(get_db)):
+        db_user = UserDB(**user.dict())
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+"""
 from datetime import date, datetime
 from typing import Optional
 from pydantic import BaseModel

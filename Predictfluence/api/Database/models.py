@@ -1,5 +1,47 @@
 """
-SQLAlchemy ORM models that mirror the Predictfluence ERD.
+SQLAlchemy ORM Models for Predictfluence Influencer Marketing Project.
+
+This module defines the database schema using SQLAlchemy's declarative ORM.
+The models mirror the ERD for the project and are used throughout the ETL
+pipeline, API, and analytics components.
+
+Key Concepts:
+- Each class represents a table in the database.
+- Relationships are defined using SQLAlchemy's `relationship`.
+- Indexes are added for performance on frequently queried columns.
+- Fact tables store aggregated metrics for influencers and content.
+- Prediction logs and API logs track model predictions and API usage.
+
+Tables / Models:
+- UserDB: Application users with hashed passwords and roles.
+- InfluencerDB: Influencer metadata and relationships to content and audience.
+- ContentDB: Individual posts by influencers.
+- EngagementDB: Engagement metrics for content (likes, comments, shares, views, rate).
+- AudienceDemographicsDB: Demographic breakdown of an influencer's audience.
+- FactInfluencerPerformanceDB: Aggregated influencer-level performance metrics.
+- FactContentFeaturesDB: Aggregated content-level features.
+- PredictionLogDB: Model prediction logs for influencer content.
+- APILogDB: Tracks API requests and responses.
+- BrandDB: Brands participating in campaigns.
+- CampaignDB: Campaigns run by brands, linked to content.
+- CampaignContentDB: Links content to campaigns with cost and role information.
+
+Usage:
+1. Import the `Base` class for SQLAlchemy table creation.
+2. Import individual models for querying or ETL operations.
+3. Use relationships for joining tables efficiently in queries.
+
+Notes:
+- Timestamps are stored in UTC by default.
+- Cascade deletes ensure dependent rows are removed automatically.
+- Indexes improve query performance on commonly filtered or joined columns.
+
+Example:
+    from Database.models import Base, UserDB, InfluencerDB
+    from Database.database import engine
+
+    # Create all tables
+    Base.metadata.create_all(bind=engine)
 """
 from sqlalchemy import (
     Boolean,
