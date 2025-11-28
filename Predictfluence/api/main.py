@@ -1,9 +1,16 @@
+import os
+from typing import Any, Dict
+
+import requests
+from fastapi import FastAPI, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from Database.database import get_db, create_tables
 from Database.models import InfluencerDB
 from Database.schema import Influencer, InfluencerCreate
-from Database.database import get_db, create_tables
 
-from sqlalchemy.orm import Session
-from fastapi import FastAPI, Depends, HTTPException
+DS_SERVICE_URL = os.getenv("DS_SERVICE_URL", "http://localhost:8010")
 
 app = FastAPI(title="Influencer Analytics Backend - Milestone 2")
 
@@ -14,6 +21,53 @@ def startup_event():
     Ensure all database tables exist when the API container starts.
     """
     create_tables()
+
+
+@app.post("/train")
+def trigger_training() -> Dict[str, Any]:
+    """
+    Proxy to the DS service training endpoint and return its JSON payload.
+    """
+    url = f"{DS_SERVICE_URL.rstrip('/')}/train"
+    try:
+        resp = requests.post(url, timeout=120)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=503, detail=f"DS service unavailable: {exc}") from exc
+
+    if not resp.ok:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+    return resp.json()
+
+
+class DSPredictPayload(BaseModel):
+    """
+    Pass-through schema for DS predict requests.
+    """
+
+    follower_count: int
+    tag_count: int
+    caption_length: int
+    content_type: str
+    content_id: int | None = None
+    influencer_id: int | None = None
+
+
+@app.post("/predict")
+def proxy_predict(payload: DSPredictPayload) -> Dict[str, Any]:
+    """
+    Proxy predict requests to the DS service and return its JSON payload.
+    """
+    url = f"{DS_SERVICE_URL.rstrip('/')}/predict"
+    try:
+        resp = requests.post(url, json=payload.dict(), timeout=60)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=503, detail=f"DS service unavailable: {exc}") from exc
+
+    if not resp.ok:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+    return resp.json()
 
 # -----------------------------
 # GET Request - Retrieve influencer by ID
