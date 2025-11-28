@@ -1,0 +1,11 @@
+user_id,email,hashed_password,role,company,full_name,created_at
+1,wilsonheather@example.org,mtWEfudh!9sA,viewer,"Harrison, Schmitt and Hill",Anthony Rivera,2022-03-10
+2,brandoncooper@example.com,$n70*ZiI*YCL,viewer,French LLC,Kim Johnson,2024-08-22
+3,thomas61@example.org,Y_LVCkfBp*91,admin,Owens Inc,Wendy Anderson,2023-02-06
+4,tyleremily@example.net,pl1i6BiUc*8*,viewer,Hoffman-Adams,Andre Gardner,2022-06-25
+5,masondavid@example.com,#+4gGpalx73Y,analyst,Schmidt-Vazquez,Mathew Walker,2020-10-18
+6,michele88@example.org,(A%4Du^fAS94,admin,Guerrero PLC,Steven Paul,2020-09-10
+7,thompsoneric@example.com,u%1hRqYsPZZx,viewer,Lindsey-Ortiz,Michael Scott,2021-11-22
+8,odaniels@example.com,M0Kmyb@5@Zba,analyst,"Davis, Cohen and Harris",Jeffrey Garcia,2024-03-17
+9,reginagomez@example.com,1$tIV9yk$Ssh,viewer,Hart-Boyd,Jasmine Morgan,2021-09-13
+10,xguerrero@example.net,#nYPEgaf2zZ4,analyst,"Matthews, Wilson and Murillo",Catherine Murray,2021-03-29
