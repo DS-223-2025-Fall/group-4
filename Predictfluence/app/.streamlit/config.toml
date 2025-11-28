@@ -1,0 +1,6 @@
+[theme]
+base = "light"
+primaryColor = "#0CA6A6"              # teal accent
+backgroundColor = "#FFFFFF"           # white
+secondaryBackgroundColor = "#F2FAFA"  # light teal background
+textColor = "#1E293B"
