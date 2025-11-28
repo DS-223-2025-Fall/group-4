@@ -1,4 +1,5 @@
 import streamlit as st
+from pages import api
 
 def render(api_url: str):
     st.title("Welcome — Micro-Influencer Analytics")
@@ -10,17 +11,21 @@ def render(api_url: str):
         username = st.text_input("Email")
         password = st.text_input("Password", type="password")
         if st.button("Login"):
-            st.session_state.authenticated = True
-            st.success("Pretend login success (demo).")
-            st.rerun()
+            # call centralized auth helper
+            res = api.auth_login(username, password)
+            if res:
+                st.session_state.authenticated = True
+                st.success("Login successful.")
+                st.experimental_rerun()
 
     with col2:
         st.markdown("## Preview / Demo")
         if st.button("Preview All Pages (skip login)"):
             st.session_state.demo_mode = True
             st.session_state.authenticated = True
+            st.session_state.auth_token = "demo-token"
             st.success("Demo mode enabled. You can browse pages.")
-            st.rerun()
+            st.experimental_rerun()
 
     st.markdown("---")
     st.caption(f"API placeholder: {api_url}")
