@@ -1,22 +1,26 @@
 import streamlit as st
 from pages.components import placeholder_section
 from pages import api
+import pandas as pd
 
 def render(api_url: str):
-    st.title("Campaigns")
-    st.markdown("Campaign performance pages — hook to `/campaigns` APIs.")
+    st.markdown("""
+    <div style="margin-bottom:24px;">
+        <h1 style="font-size:32px; font-weight:700; color:#1f2937; margin-bottom:4px;">Campaigns</h1>
+        <p style="color:#6b7280; font-size:14px;">Campaign performance pages — hook to `/campaigns` APIs.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     campaigns = None
     if st.session_state.get('demo_mode'):
         campaigns = [{'id': 1, 'name': 'Summer Launch'}, {'id':2,'name':'Holiday Promo'}]
     else:
-        res = api.get('/campaigns', params={'status':'active'})
-        if isinstance(res, dict) and 'items' in res:
-            campaigns = res['items']
-        else:
-            campaigns = []
+        # Support both active and all campaigns
+        campaigns = api.get('/campaigns', params={'status':'active'}) or []
+        if not campaigns:
+            campaigns = api.get('/campaigns') or []
 
-    options = ["— none —"] + [f"{c['name']} (id:{c.get('campaign_id', c.get('id'))})" for c in campaigns]
+    options = ["— none —"] + [f"{c['name']} (id:{c['id']})" for c in campaigns]
     selected_campaign = st.selectbox("Select campaign", options)
     if selected_campaign == "— none —":
         st.info("Select a campaign to view detailed metrics.")
@@ -26,16 +30,40 @@ def render(api_url: str):
             cid = int(selected_campaign.split('id:')[-1].strip(')'))
         except Exception:
             cid = None
-        summary_ph = placeholder_section("Campaign Summary", f"GET {api_url}/campaigns/{cid}/summary")
-        perf_ph = placeholder_section("Influencer Performance", f"GET {api_url}/campaigns/{cid}/influencer-performance")
-
-        if not st.session_state.get('demo_mode') and cid:
-            summary = api.get(f'/campaigns/{cid}/summary')
-            if isinstance(summary, dict):
-                summary_ph.empty()
-                summary_ph.json(summary)
-
-            perf = api.get(f'/campaigns/{cid}/influencer-performance')
-            if isinstance(perf, list):
-                perf_ph.empty()
-                perf_ph.dataframe(perf)
+        
+        if cid:
+            # Campaign Summary
+            st.subheader("Campaign Summary")
+            if st.session_state.get('demo_mode'):
+                st.json({
+                    'name': 'Summer Launch',
+                    'status': 'active',
+                    'total_influencers': 15,
+                    'total_engagement': 125000,
+                    'total_cost': 5000
+                })
+            else:
+                summary = api.get(f'/campaigns/{cid}/summary')
+                if summary:
+                    st.json(summary)
+                else:
+                    st.info(f"Fetch from GET {api_url}/campaigns/{cid}/summary")
+            
+            # Influencer Performance Table
+            st.subheader("Influencer Performance")
+            if st.session_state.get('demo_mode'):
+                demo_df = pd.DataFrame([
+                    {'name': 'Alice', 'role': 'Primary', 'paid': True, 'engagement_rate': 0.045, 'reach': 12000},
+                    {'name': 'Bob', 'role': 'Secondary', 'paid': False, 'engagement_rate': 0.032, 'reach': 8500}
+                ])
+                st.dataframe(demo_df)
+            else:
+                perf = api.get(f'/campaigns/{cid}/influencer-performance')
+                if perf:
+                    try:
+                        df = pd.DataFrame(perf)
+                        st.dataframe(df)
+                    except Exception:
+                        st.error('Unexpected influencer performance data format')
+                else:
+                    st.info(f"Fetch from GET {api_url}/campaigns/{cid}/influencer-performance")

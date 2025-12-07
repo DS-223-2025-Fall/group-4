@@ -3,8 +3,12 @@ from pages.components import placeholder_section
 from pages import api
 
 def render(api_url: str):
-    st.title("Recommendations")
-    st.markdown("AI/algorithmic suggestions — placeholder for future `/recommendations` endpoint.")
+    st.markdown("""
+    <div style="margin-bottom:24px;">
+        <h1 style="font-size:32px; font-weight:700; color:#1f2937; margin-bottom:4px;">Recommendations</h1>
+        <p style="color:#6b7280; font-size:14px;">AI/algorithmic suggestions — placeholder for future `/recommendations` endpoint.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.subheader("Filters")
 
@@ -44,17 +48,41 @@ def render(api_url: str):
     if run:
         payload = {
             'platform': None if platform=='All' else platform,
-            'audience_size_band': audience if audience != "Any" else None,
+            'audience_bucket': audience if audience != 'Any' else None,
             'content_type': None if content_type=='Any' else content_type,
         }
+        payload = {k: v for k, v in payload.items() if v is not None}
+        
         if st.session_state.get('demo_mode'):
-            placeholder_section("Suggested Influencers", f"(demo) top suggestions appear here")
+            demo_results = [
+                {'id': 1, 'name': 'Alice', 'handle': '@alice', 'predicted_engagement': 0.045, 'rationale': 'High engagement in Beauty category'},
+                {'id': 2, 'name': 'Bob', 'handle': '@bob', 'predicted_engagement': 0.038, 'rationale': 'Strong audience match'},
+                {'id': 3, 'name': 'Cara', 'handle': '@cara', 'predicted_engagement': 0.032, 'rationale': 'Good cost-to-engagement ratio'}
+            ]
+            st.subheader("Suggested Influencers")
+            cols = st.columns(3)
+            for col, result in zip(cols, demo_results):
+                with col:
+                    st.markdown(f"**{result['name']}** {result['handle']}")
+                    st.metric("Predicted Engagement", f"{result['predicted_engagement']:.2%}")
+                    st.caption(result['rationale'])
+                    if st.button(f"View Details", key=f"demo_{result['id']}"):
+                        st.info(f"Would navigate to influencer {result['id']} detail page")
         else:
             res = api.post('/recommendations', payload)
-            ph = placeholder_section("Suggested Influencers", f"Results from POST {api_url}/recommendations")
-            if isinstance(res, dict) and res.get('recommendations'):
-                ph.empty()
-                for rec in res['recommendations']:
-                    st.markdown(f"**{rec.get('influencer_name','')}** — {rec.get('platform','')}")
-                    st.write(f"Predicted engagement: {rec.get('predicted_engagement',0):.3f}")
-                    st.caption(rec.get('rationale',''))
+            if res:
+                st.subheader("Suggested Influencers")
+                results_list = res if isinstance(res, list) else [res]
+                cols = st.columns(min(3, len(results_list)))
+                for col, result in zip(cols, results_list):
+                    with col:
+                        st.markdown(f"**{result.get('name', 'Unknown')}** {result.get('handle', '')}")
+                        if 'predicted_engagement' in result:
+                            st.metric("Predicted Engagement", f"{result['predicted_engagement']:.2%}")
+                        if 'rationale' in result:
+                            st.caption(result['rationale'])
+                        if 'id' in result:
+                            if st.button(f"View Details", key=f"inf_{result['id']}"):
+                                st.info(f"Would navigate to influencer {result['id']} detail page")
+            else:
+                st.info(f"Results from POST {api_url}/recommendations")

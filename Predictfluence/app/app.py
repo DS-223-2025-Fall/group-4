@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 from importlib import import_module
+from pages.components import inject_styles
 
 st.set_page_config(page_title="Micro-Influencer Analytics (UI Preview)",
                    layout="wide", initial_sidebar_state="expanded")
@@ -8,23 +9,8 @@ st.set_page_config(page_title="Micro-Influencer Analytics (UI Preview)",
 # load API url from env (placeholder for later)
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
-# aesthetic / fonts / colors
-st.markdown("""
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --accent-grad: linear-gradient(90deg,#1fb6ff,#7c4dff);
-  }
-  body { font-family: "Inter", "Poppins", sans-serif; }
-  .sidebar .stButton>button { border-radius: 10px; }
-  .kpi-card { border-radius: 12px; padding: 14px; box-shadow: 0 4px 16px rgba(16,24,40,0.06); background: white; }
-  .accent { background: var(--accent-grad); -webkit-background-clip: text; color: transparent; }
-  .muted { color: #6b7280; font-size:13px }
-  .small { font-size:12px; color:#9ca3af }
-  .topbar { display:flex; justify-content:space-between; align-items:center }
-  .searchbox input { padding:8px 12px; border-radius:10px; border:1px solid #e6e9ef }
-</style>
-""", unsafe_allow_html=True)
+# Inject global theme styles (applies to all pages)
+inject_styles()
 
 # ---------- Navigation config ----------
 PAGES = {
@@ -49,10 +35,27 @@ if "auth_token" not in st.session_state:
 
 # Sidebar (fixed)
 with st.sidebar:
-    st.markdown("<h2 class='accent'>Micro-Influencer Analytics</h2>", unsafe_allow_html=True)
-    st.markdown("Light mode • Teal→Blue accents • Rounded UI")
-    # navigation
-    page_choice = st.radio("Navigate", list(PAGES.keys()), index=list(PAGES.keys()).index(st.session_state.page))
+    st.markdown(
+        """
+        <div style="display:flex; align-items:center; gap:10px; margin-top:6px; margin-bottom:12px;">
+          <div style="width:38px; height:38px; border-radius:12px; background:linear-gradient(135deg,#12c2e9,#2f80ed); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800;">
+            IQ
+          </div>
+          <div>
+            <div style="font-weight:800; font-size:16px;">InfluenceIQ</div>
+            <div style="font-size:12px; color:#6b7280;">Analytics Platform</div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    nav_items = list(PAGES.keys())
+    page_choice = st.radio(
+        "Navigate",
+        nav_items,
+        index=nav_items.index(st.session_state.page),
+        label_visibility="collapsed",
+    )
     st.session_state.page = page_choice
 
     st.markdown("---")
@@ -69,7 +72,18 @@ with st.sidebar:
             st.session_state.authenticated = True
             st.session_state.page = "Dashboard"
     st.markdown("---")
-    st.caption("UI skeleton — API hooks are ready (API_URL env var).")
+    st.markdown(
+        """
+        <div class="iq-card" style="padding:12px;">
+          <div style="font-weight:700; font-size:13px; margin-bottom:4px;">Need help?</div>
+          <div style="font-size:12px; color:#6b7280;">Check docs or use demo mode.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+
 
 # Initialize API helper (safe to import even if pages not yet loaded)
 try:
