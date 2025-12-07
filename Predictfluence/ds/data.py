@@ -8,13 +8,14 @@ import numpy as np
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from Database.models import FactContentFeaturesDB, FactInfluencerPerformanceDB
+from Database.models import ContentDB, FactContentFeaturesDB, FactInfluencerPerformanceDB
 from config import FEATURE_COLUMNS, TARGET_COLUMN
 
 
 def load_training_data_from_db(db: Session) -> pd.DataFrame:
     """
-    Pull training data by joining fact_content_features with fact_influencer_performance.
+    Pull training data by joining fact_content_features with fact_influencer_performance
+    (and content for post_date to support time-aware analysis).
     """
     rows = (
         db.query(
@@ -27,16 +28,20 @@ def load_training_data_from_db(db: Session) -> pd.DataFrame:
             FactInfluencerPerformanceDB.follower_count,
             FactInfluencerPerformanceDB.category,
             FactInfluencerPerformanceDB.audience_top_country,
+            ContentDB.post_date,
         )
         .join(
             FactInfluencerPerformanceDB,
             FactContentFeaturesDB.influencer_id == FactInfluencerPerformanceDB.influencer_id,
         )
+        .join(ContentDB, FactContentFeaturesDB.content_id == ContentDB.content_id)
         .all()
     )
 
     if not rows:
-        return pd.DataFrame(columns=["content_id", "influencer_id", *FEATURE_COLUMNS, TARGET_COLUMN])
+        return pd.DataFrame(
+            columns=["content_id", "influencer_id", *FEATURE_COLUMNS, TARGET_COLUMN, "post_date"]
+        )
 
     return pd.DataFrame(
         rows,
@@ -50,6 +55,7 @@ def load_training_data_from_db(db: Session) -> pd.DataFrame:
             "follower_count",
             "category",
             "audience_top_country",
+            "post_date",
         ],
     )
 

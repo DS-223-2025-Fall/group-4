@@ -53,6 +53,12 @@ Predict the `engagement_rate` of influencer content and expose the model over Fa
 - Segmentation: Based on predicted engagement rate — top 10% → `A`, next 30% → `B`, rest → `C`.
 - Recommended JSON schema for future `/recommendations` endpoint is provided in `recommended_schema()` within `batch_scoring.py`.
 
+## New analytics and models
+- **Influencer skill scores** (`ds/insights.py::estimate_influencer_skill`): shrunken residuals per influencer to rank “true” performance; saved via `save_influencer_skill_scores`.
+- **Tier classifier** (`train_tier_classifier`): direct A/B/C model with calibrated metrics; artifacts saved as `tier-<timestamp>.joblib` and loaded via `load_latest_tier_model`.
+- **Unsupervised clustering** (`cluster_influencers`): KMeans segments influencers using follower_count, categories, countries, and engagement patterns; returns cluster labels for dashboards/filters.
+- **Time-aware schedule** (`suggest_posting_schedule`): day-of-week/hour-of-day averages to surface best posting times; CSVs saved via `save_schedule`.
+
 ## Service endpoints (DS)
 - `GET /health`: readiness check.
 - `POST /train`: triggers training, returns metrics, version, feature list, top features.
