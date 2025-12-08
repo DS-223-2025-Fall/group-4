@@ -1,5 +1,7 @@
 import os
+import re
 import pandas as pd
+from datetime import datetime, time
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 # from passlib.hash import bcrypt
@@ -94,6 +96,18 @@ def run_etl():
         load_csv(session, "campaign_content.csv", CampaignContentDB)
 
         # ----------------------------
+        # Populate post_datetime from post_date (if missing)
+        # ----------------------------
+        print("Populating post_datetime from post_date...")
+        contents_to_update = session.query(ContentDB).filter(ContentDB.post_datetime.is_(None)).all()
+        for content in contents_to_update:
+            if content.post_date:
+                # Set default time to 12:00 PM if not available
+                content.post_datetime = datetime.combine(content.post_date, time(12, 0))
+        session.commit()
+        print(f"Updated {len(contents_to_update)} content records with post_datetime")
+
+        # ----------------------------
         # Compute Fact Influencer Performance
         # ----------------------------
         influencer_records = []
@@ -125,6 +139,11 @@ def run_etl():
                 .first()
             )
 
+            # Handle missing data per ETL requirements
+            follower_count = influencer.follower_count if influencer.follower_count and influencer.follower_count > 0 else 1000
+            category = influencer.category if influencer.category else "Unknown"
+            audience_top_country = top_country.country if top_country and top_country.country else "Unknown"
+
             influencer_records.append(FactInfluencerPerformanceDB(
                 influencer_id=influencer.influencer_id,
                 avg_engagement_rate=avg_eng_rate,
@@ -132,36 +151,113 @@ def run_etl():
                 avg_comments=avg_comments,
                 avg_shares=avg_shares,
                 avg_views=avg_views,
-                follower_count=influencer.follower_count,
-                category=influencer.category,
-                audience_top_country=top_country.country if top_country else None
+                follower_count=follower_count,
+                category=category,
+                audience_top_country=audience_top_country
             ))
 
+        # Clear existing fact_influencer_performance to avoid duplicates
+        session.query(FactInfluencerPerformanceDB).delete()
         session.add_all(influencer_records)
         session.commit()
+        print(f"Created {len(influencer_records)} fact_influencer_performance records")
 
         # ----------------------------
         # Compute Fact Content Features
         # ----------------------------
+        print("Computing fact_content_features...")
         contents = session.query(ContentDB).all()
         content_records = []
         engagement_map = {e.content_id: e.engagement_rate for e in session.query(EngagementDB).all()}
 
+        def calculate_tag_count(caption: str) -> int:
+            """Count hashtags (#) and mentions (@) in caption."""
+            if not caption:
+                return 0
+            # Count # symbols (hashtags)
+            hashtags = len(re.findall(r'#\w+', caption))
+            # Count @ symbols (mentions)
+            mentions = len(re.findall(r'@\w+', caption))
+            return hashtags + mentions
+
         for content in contents:
+            # Calculate tag_count from caption
+            tag_count = calculate_tag_count(content.caption) if content.caption else 0
+            
+            # Calculate caption_length
+            caption_length = len(content.caption) if content.caption else 0
+            
+            # Get engagement_rate
+            engagement_rate = engagement_map.get(content.content_id, 0.0)
+            
+            # Validate engagement_rate is reasonable (0-1 range)
+            if engagement_rate < 0:
+                engagement_rate = 0.0
+            if engagement_rate > 1:
+                engagement_rate = min(engagement_rate, 1.0)  # Cap at 1.0 if calculated differently
+            
+            # Ensure content_type is valid
+            valid_content_types = ["Image", "Video", "Reel", "Story"]
+            content_type = content.content_type if content.content_type in valid_content_types else "Image"
+
             content_records.append(FactContentFeaturesDB(
                 content_id=content.content_id,
                 influencer_id=content.influencer_id,
-                tag_count=0,
-                caption_length=len(content.caption) if content.caption else 0,
-                content_type=content.content_type,
-                engagement_rate=engagement_map.get(content.content_id, 0.0)
+                tag_count=tag_count,
+                caption_length=caption_length,
+                content_type=content_type,
+                engagement_rate=engagement_rate
             ))
 
+        # Clear existing fact_content_features to avoid duplicates
+        session.query(FactContentFeaturesDB).delete()
         session.add_all(content_records)
         session.commit()
+        print(f"Created {len(content_records)} fact_content_features records")
 
-        print("ETL completed successfully.")
+        # ----------------------------
+        # Data Quality Validation
+        # ----------------------------
+        print("\nValidating data quality...")
+        
+        # Check fact tables are populated
+        fact_perf_count = session.query(FactInfluencerPerformanceDB).count()
+        fact_content_count = session.query(FactContentFeaturesDB).count()
+        
+        print(f"  fact_influencer_performance: {fact_perf_count} records")
+        print(f"  fact_content_features: {fact_content_count} records")
+        
+        # Check for NULLs in critical fields
+        null_followers = session.query(FactInfluencerPerformanceDB).filter(
+            FactInfluencerPerformanceDB.follower_count.is_(None)
+        ).count()
+        null_categories = session.query(FactInfluencerPerformanceDB).filter(
+            FactInfluencerPerformanceDB.category.is_(None)
+        ).count()
+        
+        if null_followers > 0:
+            print(f"  WARNING: {null_followers} records with NULL follower_count")
+        if null_categories > 0:
+            print(f"  WARNING: {null_categories} records with NULL category")
+        
+        # Check join capability
+        join_count = (
+            session.query(FactContentFeaturesDB)
+            .join(FactInfluencerPerformanceDB, 
+                  FactContentFeaturesDB.influencer_id == FactInfluencerPerformanceDB.influencer_id)
+            .count()
+        )
+        print(f"  Joinable records (fact_content_features + fact_influencer_performance): {join_count}")
+        
+        if fact_perf_count > 0 and fact_content_count > 0 and join_count > 0:
+            print("\n✅ ETL completed successfully. All requirements met!")
+        else:
+            print("\n⚠️  ETL completed but some data may be missing. Check warnings above.")
 
+    except Exception as e:
+        print(f"\n❌ ETL failed with error: {e}")
+        session.rollback()
+        raise
     finally:
         session.close()
 

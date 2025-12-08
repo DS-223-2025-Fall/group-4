@@ -131,11 +131,13 @@ class ContentDB(Base):
     content_type = Column(String, nullable=False)
     topic = Column(String, nullable=True)
     post_date = Column(Date, nullable=True)
+    post_datetime = Column(DateTime(timezone=True), nullable=True)  # For hour-level posting schedule analysis
     caption = Column(Text, nullable=True)
     url = Column(String, nullable=True)
 
     __table_args__ = (
         Index("idx_content_post_date_content_type", "post_date", "content_type"),
+        Index("idx_content_post_datetime", "post_datetime"),
     )
 
     influencer = relationship("InfluencerDB", back_populates="content")

@@ -229,3 +229,74 @@ class HealthResponse(BaseModel):
 
 class APILogListResponse(BaseModel):
     items: List[APILog]
+
+
+# -----------------------------
+# Advanced ML / Insights
+# -----------------------------
+class SkillScoreItem(BaseModel):
+    influencer_id: int
+    n_posts: int
+    mean_residual: float
+    shrinkage_weight: float
+    skill_score: float
+
+
+class SkillScoresResponse(BaseModel):
+    scores: List[SkillScoreItem]
+    model_version: str
+
+
+class TierPredictRequest(BaseModel):
+    follower_count: int
+    tag_count: int
+    caption_length: int
+    content_type: str
+    category: Optional[str] = None
+    audience_top_country: Optional[str] = None
+
+
+class TierPredictResponse(BaseModel):
+    tier: str
+    model_version: str
+
+
+class TierTrainResponse(BaseModel):
+    model_version: str
+    accuracy: float
+    macro_f1: float
+    n_rows: int
+
+
+class ClusterItem(BaseModel):
+    influencer_id: int
+    cluster: int
+    n_posts: int
+
+
+class ClusterResponse(BaseModel):
+    clusters: List[ClusterItem]
+    n_clusters: int
+
+
+class ScheduleDayItem(BaseModel):
+    day_of_week: str
+    avg_engagement_rate: float
+
+
+class ScheduleHourItem(BaseModel):
+    post_hour: int
+    avg_engagement_rate: float
+
+
+class ScheduleResponse(BaseModel):
+    by_day: Optional[List[ScheduleDayItem]] = None
+    by_hour: Optional[List[ScheduleHourItem]] = None
+    model_version: str
+
+
+class BatchScoringResponse(BaseModel):
+    output_path: str
+    n_predictions: int
+    model_version: str
+    segments: dict[str, int]

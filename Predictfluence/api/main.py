@@ -48,10 +48,12 @@ from Database.schema import (
 from schemas import (
     APILogListResponse,
     AudienceAnalyticsResponse,
+    BatchScoringResponse,
     CampaignDetail,
     CampaignInfluencerPerformanceRow,
     CampaignListResponse,
     CampaignSummary,
+    ClusterResponse,
     ContentDetail,
     CountResponse,
     CreativeAnalyticsResponse,
@@ -66,6 +68,11 @@ from schemas import (
     PerformanceAnalyticsResponse,
     RecommendationRequest,
     RecommendationResponse,
+    ScheduleResponse,
+    SkillScoresResponse,
+    TierPredictRequest,
+    TierPredictResponse,
+    TierTrainResponse,
     TokenResponse,
     TopCampaignsResponse,
     UserProfile,
@@ -779,30 +786,137 @@ def analytics_performance(db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 @app.post("/recommendations", response_model=RecommendationResponse)
 def recommendations(payload: RecommendationRequest, db: Session = Depends(get_db)):
-    """Simple recommendation stub that surfaces influencers matching filters."""
+    """
+    ML-powered recommendations using batch scoring and tier classification.
+    Filters influencers by criteria and returns top performers with predictions.
+    """
+    # Step 1: Filter influencers by criteria
     query = db.query(InfluencerDB)
     if payload.platform:
         query = query.filter(InfluencerDB.platform == payload.platform)
     if payload.category:
         query = query.filter(InfluencerDB.category == payload.category)
-
-    influencers = query.limit(10).all()
-
-    recs = []
-    for inf in influencers:
-        predicted = max(0.01, min(0.25, (inf.follower_count or 1) ** -0.3))
-        recs.append(
-            {
+    
+    influencers = query.limit(50).all()  # Get more candidates for ML scoring
+    
+    if not influencers:
+        return RecommendationResponse(recommendations=[])
+    
+    # Step 2: Get performance data for these influencers
+    influencer_ids = [inf.influencer_id for inf in influencers]
+    perf_data = (
+        db.query(FactInfluencerPerformanceDB)
+        .filter(FactInfluencerPerformanceDB.influencer_id.in_(influencer_ids))
+        .all()
+    )
+    perf_dict = {p.influencer_id: p for p in perf_data}
+    
+    # Step 3: Get content features for these influencers to make predictions
+    content_features = (
+        db.query(FactContentFeaturesDB)
+        .filter(FactContentFeaturesDB.influencer_id.in_(influencer_ids))
+        .limit(100)
+        .all()
+    )
+    
+    if not content_features:
+        # Fallback: use basic heuristics if no content data
+        recs = []
+        for inf in influencers[:10]:
+            perf = perf_dict.get(inf.influencer_id)
+            predicted = 0.05  # Default low prediction
+            if perf:
+                predicted = max(0.01, min(0.25, (perf.follower_count or 1) ** -0.3))
+            
+            recs.append({
                 "influencer_id": inf.influencer_id,
                 "influencer_name": inf.name,
                 "platform": inf.platform,
                 "predicted_engagement": float(predicted),
-                "rationale": "Matched by platform/category; heuristic score for demo",
+                "rationale": "Limited data available; using performance heuristics",
                 "content_id": None,
+            })
+        return RecommendationResponse(recommendations=recs)
+    
+    # Step 4: Use ML service to predict engagement for content pieces
+    recs = []
+    predictions_made = {}
+    
+    for cf in content_features[:20]:  # Limit to avoid too many API calls
+        inf = next((i for i in influencers if i.influencer_id == cf.influencer_id), None)
+        if not inf:
+            continue
+        
+        perf = perf_dict.get(cf.influencer_id)
+        if not perf:
+            continue
+        
+        # Build prediction request
+        try:
+            pred_payload = {
+                "follower_count": perf.follower_count or 1000,
+                "tag_count": cf.tag_count or 0,
+                "caption_length": cf.caption_length or 0,
+                "content_type": cf.content_type or "Image",
+                "influencer_id": cf.influencer_id,
+                "content_id": cf.content_id,
             }
-        )
-
-    return RecommendationResponse(recommendations=recs)
+            
+            resp = requests.post(f"{DS_URL}/predict", json=pred_payload, timeout=5)
+            if resp.ok:
+                pred_data = resp.json()
+                predicted = pred_data.get("predicted_engagement_rate", 0.0)
+                predictions_made[cf.influencer_id] = max(
+                    predictions_made.get(cf.influencer_id, 0.0),
+                    predicted
+                )
+        except Exception:
+            continue  # Skip if prediction fails
+    
+    # Step 5: Build recommendations sorted by predicted engagement
+    for inf in influencers:
+        if inf.influencer_id in predictions_made:
+            perf = perf_dict.get(inf.influencer_id)
+            rationale_parts = []
+            if payload.platform:
+                rationale_parts.append(f"Platform: {payload.platform}")
+            if payload.category:
+                rationale_parts.append(f"Category: {payload.category}")
+            rationale_parts.append("ML-predicted engagement rate")
+            
+            recs.append({
+                "influencer_id": inf.influencer_id,
+                "influencer_name": inf.name,
+                "platform": inf.platform,
+                "predicted_engagement": float(predictions_made[inf.influencer_id]),
+                "rationale": "; ".join(rationale_parts),
+                "content_id": None,
+            })
+    
+    # Sort by predicted engagement (descending) and limit to top 10
+    recs.sort(key=lambda x: x["predicted_engagement"], reverse=True)
+    
+    # If we have fewer than 10 ML predictions, fill with filtered influencers
+    if len(recs) < 10:
+        for inf in influencers:
+            if inf.influencer_id not in predictions_made:
+                perf = perf_dict.get(inf.influencer_id)
+                predicted = 0.03  # Lower default for non-ML
+                if perf:
+                    predicted = max(0.01, min(0.20, (perf.follower_count or 1) ** -0.3))
+                
+                recs.append({
+                    "influencer_id": inf.influencer_id,
+                    "influencer_name": inf.name,
+                    "platform": inf.platform,
+                    "predicted_engagement": float(predicted),
+                    "rationale": "Filtered match; estimated engagement",
+                    "content_id": None,
+                })
+                if len(recs) >= 10:
+                    break
+    
+    return RecommendationResponse(recommendations=recs[:10])
 
 
 @app.post("/ml/train", response_model=MLTrainResponse)
@@ -825,6 +939,78 @@ def ml_predict(payload: MLPredictRequest, db: Session = Depends(get_db)):
         return MLPredictResponse(**resp.json())
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"ML predict failed: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# Advanced ML / Insights Endpoints
+# ---------------------------------------------------------------------------
+@app.post("/ml/insights/skill-scores", response_model=SkillScoresResponse)
+def ml_skill_scores(db: Session = Depends(get_db)):
+    """Get influencer skill scores based on model residuals."""
+    try:
+        resp = requests.post(f"{DS_URL}/insights/skill-scores", timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        return SkillScoresResponse(**data)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Skill scores failed: {exc}")
+
+
+@app.post("/ml/insights/tier/predict", response_model=TierPredictResponse)
+def ml_tier_predict(payload: TierPredictRequest, db: Session = Depends(get_db)):
+    """Predict content tier (A/B/C) for a single content piece."""
+    try:
+        resp = requests.post(f"{DS_URL}/insights/tier/predict", json=payload.dict(), timeout=10)
+        resp.raise_for_status()
+        return TierPredictResponse(**resp.json())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Tier prediction failed: {exc}")
+
+
+@app.post("/ml/insights/tier/train", response_model=TierTrainResponse)
+def ml_tier_train(db: Session = Depends(get_db)):
+    """Train the tier classifier model."""
+    try:
+        resp = requests.post(f"{DS_URL}/insights/tier/train", timeout=30)
+        resp.raise_for_status()
+        return TierTrainResponse(**resp.json())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Tier training failed: {exc}")
+
+
+@app.post("/ml/insights/clusters", response_model=ClusterResponse)
+def ml_clusters(n_clusters: int = Query(5, ge=2, le=10), db: Session = Depends(get_db)):
+    """Cluster influencers using KMeans for segmentation."""
+    try:
+        resp = requests.post(f"{DS_URL}/insights/clusters", params={"n_clusters": n_clusters}, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        return ClusterResponse(**data)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Clustering failed: {exc}")
+
+
+@app.get("/ml/insights/posting-schedule", response_model=ScheduleResponse)
+def ml_posting_schedule(db: Session = Depends(get_db)):
+    """Get optimal posting schedule based on historical engagement patterns."""
+    try:
+        resp = requests.get(f"{DS_URL}/insights/posting-schedule", timeout=20)
+        resp.raise_for_status()
+        data = resp.json()
+        return ScheduleResponse(**data)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Schedule analysis failed: {exc}")
+
+
+@app.post("/ml/batch-score", response_model=BatchScoringResponse)
+def ml_batch_score(db: Session = Depends(get_db)):
+    """Run batch scoring on all available data and return predictions with segments."""
+    try:
+        resp = requests.post(f"{DS_URL}/batch-score", timeout=60)
+        resp.raise_for_status()
+        return BatchScoringResponse(**resp.json())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Batch scoring failed: {exc}")
 
 
 # ---------------------------------------------------------------------------

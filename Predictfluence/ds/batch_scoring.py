@@ -15,7 +15,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 
 from config import FEATURE_COLUMNS, OUTPUTS_DIR
-from modeling import load_latest_model
+from train import load_latest_model
 from data import load_training_data_from_db
 
 BATCH_OUTPUT_TEMPLATE = "batch_predictions_{version}.csv"

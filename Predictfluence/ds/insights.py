@@ -264,10 +264,12 @@ def cluster_influencers(
 def _compute_day_hour_columns(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     if "post_date" in df.columns:
-        df["post_date"] = pd.to_datetime(df["post_date"])
+        df["post_date"] = pd.to_datetime(df["post_date"], errors="coerce")
         df["day_of_week"] = df["post_date"].dt.day_name()
+    # If we have post_date but no post_hour, we can't extract hour from date alone
+    # This would require a post_datetime or post_timestamp column with time info
     if "post_hour" not in df.columns and "post_datetime" in df.columns:
-        df["post_datetime"] = pd.to_datetime(df["post_datetime"])
+        df["post_datetime"] = pd.to_datetime(df["post_datetime"], errors="coerce")
         df["post_hour"] = df["post_datetime"].dt.hour
     return df
 
