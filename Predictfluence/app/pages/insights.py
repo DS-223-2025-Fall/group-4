@@ -30,24 +30,30 @@ def render(api_url: str):
             res = api.get('/analytics/audience', params={'group_by': group_by})
             if res:
                 try:
-                    if isinstance(res, dict):
-                        df = pd.DataFrame(list(res.items()), columns=[group_by, 'count'])
-                        df = df.set_index(group_by)
-                        st.bar_chart(df['count'])
+                    if isinstance(res, dict) and 'items' in res:
+                        # API returns {group_by: "country", items: [{group: "USA", percentage: 25.5}]}
+                        items = res['items']
+                        if items:
+                            df = pd.DataFrame(items)
+                            if 'group' in df.columns and 'percentage' in df.columns:
+                                df = df.set_index('group')
+                                st.bar_chart(df['percentage'])
+                            else:
+                                st.dataframe(df)
+                        else:
+                            st.info("No audience data available")
                     elif isinstance(res, list):
                         df = pd.DataFrame(res)
                         if group_by in df.columns:
                             df = df.set_index(group_by)
-                            st.bar_chart(df['count'] if 'count' in df.columns else df.iloc[:, 0])
+                            st.bar_chart(df['percentage'] if 'percentage' in df.columns else df.iloc[:, 0])
                         else:
                             st.dataframe(df)
                     else:
                         st.json(res)
-                except Exception:
-                    st.error('Unexpected audience data format')
+                except Exception as e:
+                    st.error(f'Unexpected audience data format: {e}')
                     st.json(res)
-            else:
-                st.info(f"Fetch from GET {api_url}/analytics/audience?group_by={group_by}")
     
     with tab2:
         st.subheader("Creative Performance")
@@ -61,29 +67,37 @@ def render(api_url: str):
             res = api.get('/analytics/creative')
             if res:
                 try:
-                    if isinstance(res, dict):
-                        if 'content_type' in res or 'topic' in res:
-                            key = 'content_type' if 'content_type' in res else 'topic'
-                            df = pd.DataFrame(list(res[key].items()), columns=[key, 'engagement_rate'])
-                            df = df.set_index(key)
-                            st.bar_chart(df['engagement_rate'])
+                    if isinstance(res, dict) and 'items' in res:
+                        # API returns {items: [{content_type: "Image", avg_engagement_rate: 0.035}]}
+                        items = res['items']
+                        if items:
+                            df = pd.DataFrame(items)
+                            # Check for avg_engagement_rate (API field) or engagement_rate (fallback)
+                            engagement_col = 'avg_engagement_rate' if 'avg_engagement_rate' in df.columns else 'engagement_rate'
+                            if 'content_type' in df.columns and engagement_col in df.columns:
+                                df = df.set_index('content_type')
+                                st.bar_chart(df[engagement_col])
+                            elif 'topic' in df.columns and engagement_col in df.columns:
+                                df = df.set_index('topic')
+                                st.bar_chart(df[engagement_col])
+                            else:
+                                st.dataframe(df)
                         else:
-                            st.json(res)
+                            st.info("No creative data available")
                     elif isinstance(res, list):
                         df = pd.DataFrame(res)
-                        if 'engagement_rate' in df.columns:
+                        engagement_col = 'avg_engagement_rate' if 'avg_engagement_rate' in df.columns else 'engagement_rate'
+                        if engagement_col in df.columns:
                             index_col = 'content_type' if 'content_type' in df.columns else 'topic'
                             if index_col in df.columns:
                                 df = df.set_index(index_col)
-                                st.bar_chart(df['engagement_rate'])
+                                st.bar_chart(df[engagement_col])
                             else:
                                 st.dataframe(df)
                         else:
                             st.dataframe(df)
                     else:
                         st.json(res)
-                except Exception:
-                    st.error('Unexpected creative data format')
+                except Exception as e:
+                    st.error(f'Unexpected creative data format: {e}')
                     st.json(res)
-            else:
-                st.info(f"Fetch from GET {api_url}/analytics/creative")

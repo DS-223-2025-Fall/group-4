@@ -13,7 +13,9 @@ import requests
 from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
+import traceback
 
 from Database.database import create_tables, get_db
 from Database.models import (
@@ -141,10 +143,15 @@ def proxy_predict(payload: DSPredictPayload) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def log_api_call(db: Session, user: str, endpoint: str, status: str) -> None:
-    """Persist a simple API log entry."""
+def log_api_call(db: Session, user: str, endpoint: str, status: str, method: str = "GET", details: Optional[str] = None) -> None:
+    """Persist an API log entry with enhanced details."""
     try:
-        db.add(APILogDB(user=user, endpoint=endpoint, status=status))
+        log_entry = APILogDB(
+            user=user,
+            endpoint=endpoint,
+            status=status
+        )
+        db.add(log_entry)
         db.commit()
     except Exception:
         db.rollback()
@@ -223,6 +230,12 @@ def update_profile(update: UserUpdate, email: Optional[str] = Query(None), db: S
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Check email uniqueness if email is being updated
+    if update.email and update.email != user.email:
+        existing = db.query(UserDB).filter(UserDB.email == update.email, UserDB.user_id != user.user_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already in use")
+
     for field, value in update.dict(exclude_unset=True).items():
         if value is not None:
             setattr(user, field, value)
@@ -275,6 +288,13 @@ def list_influencers(
     return InfluencerListResponse(items=records, total=total)
 
 
+@app.get("/influencers/count", response_model=CountResponse)
+def count_influencers(db: Session = Depends(get_db)):
+    """Return the total influencer count (for dashboard KPI)."""
+    count = db.query(func.count(InfluencerDB.influencer_id)).scalar() or 0
+    return CountResponse(count=count)
+
+
 @app.get("/influencers/{influencer_id}", response_model=InfluencerDetail)
 def get_influencer(influencer_id: int, include: Optional[str] = Query(None), db: Session = Depends(get_db)):
     """Retrieve an influencer with optional performance and audience sections."""
@@ -305,12 +325,44 @@ def get_influencer(influencer_id: int, include: Optional[str] = Query(None), db:
 
 @app.post("/influencers", response_model=Influencer)
 def create_influencer(influencer: InfluencerCreate, db: Session = Depends(get_db)):
-    """Create a new influencer record."""
-    db_influencer = InfluencerDB(**influencer.dict())
-    db.add(db_influencer)
-    db.commit()
-    db.refresh(db_influencer)
-    return db_influencer
+    """Create a new influencer record with duplicate validation."""
+    # Check for duplicate username on same platform
+    existing = db.query(InfluencerDB).filter(
+        InfluencerDB.username == influencer.username,
+        InfluencerDB.platform == influencer.platform
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"An influencer with username '{influencer.username}' already exists on {influencer.platform}. Please use a different username or platform."
+        )
+    
+    # Validate follower count
+    if influencer.follower_count < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Follower count must be a positive number."
+        )
+    
+    try:
+        db_influencer = InfluencerDB(**influencer.dict())
+        db.add(db_influencer)
+        db.commit()
+        db.refresh(db_influencer)
+        log_api_call(db, "system", "/influencers", "201", "POST")
+        return db_influencer
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to create influencer. The data may conflict with existing records."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while creating the influencer: {str(e)}"
+        )
 
 
 @app.put("/influencers/{influencer_id}", response_model=Influencer)
@@ -368,13 +420,6 @@ def list_influencer_content(
     if end_date:
         query = query.filter(ContentDB.post_date <= end_date)
     return query.order_by(ContentDB.post_date.desc().nullslast()).all()
-
-
-@app.get("/influencers/count", response_model=CountResponse)
-def count_influencers(db: Session = Depends(get_db)):
-    """Return the total influencer count (for dashboard KPI)."""
-    count = db.query(func.count(InfluencerDB.influencer_id)).scalar() or 0
-    return CountResponse(count=count)
 
 
 # ---------------------------------------------------------------------------
@@ -492,16 +537,59 @@ def list_campaigns(
 
 @app.post("/campaigns", response_model=Campaign)
 def create_campaign(payload: CampaignCreate, db: Session = Depends(get_db)):
-    """Create a new campaign."""
+    """Create a new campaign with duplicate validation."""
     brand = db.query(BrandDB).filter(BrandDB.brand_id == payload.brand_id).first()
     if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found")
-
-    campaign = CampaignDB(**payload.dict())
-    db.add(campaign)
-    db.commit()
-    db.refresh(campaign)
-    return campaign
+        raise HTTPException(
+            status_code=404,
+            detail=f"Brand with ID {payload.brand_id} not found. Please select a valid brand."
+        )
+    
+    # Check for duplicate campaign name for the same brand
+    existing = db.query(CampaignDB).filter(
+        CampaignDB.name == payload.name,
+        CampaignDB.brand_id == payload.brand_id
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A campaign named '{payload.name}' already exists for this brand. Please use a different name."
+        )
+    
+    # Validate dates
+    if payload.start_date and payload.end_date:
+        if payload.end_date < payload.start_date:
+            raise HTTPException(
+                status_code=400,
+                detail="End date must be after start date."
+            )
+    
+    # Validate budget
+    if payload.budget and payload.budget < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Budget must be a positive number."
+        )
+    
+    try:
+        campaign = CampaignDB(**payload.dict())
+        db.add(campaign)
+        db.commit()
+        db.refresh(campaign)
+        log_api_call(db, "system", "/campaigns", "201", "POST")
+        return campaign
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to create campaign. The data may conflict with existing records."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while creating the campaign: {str(e)}"
+        )
 
 
 @app.get("/campaigns/{campaign_id}", response_model=CampaignDetail)
@@ -773,11 +861,27 @@ def analytics_performance(db: Session = Depends(get_db)):
         )
         .first()
     )
+    # Calculate avg_cost_per_influencer from campaigns
+    # This is a simplified calculation: total budget / number of unique influencers in campaigns
+    campaign_agg = (
+        db.query(
+            func.sum(CampaignDB.budget),
+            func.count(func.distinct(ContentDB.influencer_id))
+        )
+        .join(CampaignContentDB, CampaignContentDB.campaign_id == CampaignDB.campaign_id)
+        .join(ContentDB, ContentDB.content_id == CampaignContentDB.content_id)
+        .first()
+    )
+    total_budget = float(campaign_agg[0] or 0.0)
+    unique_influencers = int(campaign_agg[1] or 1)
+    avg_cost = total_budget / unique_influencers if unique_influencers > 0 else 0.0
+    
     return PerformanceAnalyticsResponse(
         avg_engagement_rate=float(agg[0] or 0.0),
         avg_likes=float(agg[1] or 0.0),
         avg_comments=float(agg[2] or 0.0),
         avg_views=float(agg[3] or 0.0),
+        avg_cost_per_influencer=avg_cost,
     )
 
 
@@ -1025,6 +1129,72 @@ def health(db: Session = Depends(get_db)):
     except Exception:
         db_status = "error"
     return HealthResponse(status="ok", db=db_status)
+
+
+@app.get("/export/influencers")
+def export_influencers(db: Session = Depends(get_db)):
+    """Export all influencers to CSV format."""
+    from fastapi.responses import Response
+    import csv
+    import io
+    
+    influencers = db.query(InfluencerDB).all()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['influencer_id', 'name', 'username', 'platform', 'follower_count', 'category', 'created_at'])
+    
+    for inf in influencers:
+        writer.writerow([
+            inf.influencer_id,
+            inf.name,
+            inf.username,
+            inf.platform,
+            inf.follower_count,
+            inf.category,
+            inf.created_at.isoformat() if inf.created_at else ''
+        ])
+    
+    output.seek(0)
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=influencers.csv"}
+    )
+
+
+@app.get("/export/campaigns")
+def export_campaigns(db: Session = Depends(get_db)):
+    """Export all campaigns to CSV format."""
+    from fastapi.responses import Response
+    import csv
+    import io
+    
+    campaigns = db.query(CampaignDB).all()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['campaign_id', 'brand_id', 'name', 'objective', 'start_date', 'end_date', 'budget', 'status', 'created_at'])
+    
+    for camp in campaigns:
+        writer.writerow([
+            camp.campaign_id,
+            camp.brand_id,
+            camp.name,
+            camp.objective,
+            camp.start_date.isoformat() if camp.start_date else '',
+            camp.end_date.isoformat() if camp.end_date else '',
+            camp.budget,
+            camp.status,
+            camp.created_at.isoformat() if camp.created_at else ''
+        ])
+    
+    output.seek(0)
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=campaigns.csv"}
+    )
 
 
 @app.get("/logs/api", response_model=APILogListResponse)

@@ -11,20 +11,35 @@ def render(api_url: str):
     </div>
     """, unsafe_allow_html=True)
 
-    campaigns = None
+    campaigns = []
     if st.session_state.get('demo_mode'):
         campaigns = [{'id': 1, 'name': 'Summer Launch'}, {'id':2,'name':'Holiday Promo'}]
     else:
         # Support both active and all campaigns
-        campaigns = api.get('/campaigns', params={'status':'active'}) or []
+        res = api.get('/campaigns', params={'status':'active'})
+        if isinstance(res, dict) and 'items' in res:
+            campaigns = res['items']
+        elif isinstance(res, list):
+            campaigns = res
         if not campaigns:
-            campaigns = api.get('/campaigns') or []
+            res = api.get('/campaigns')
+            if isinstance(res, dict) and 'items' in res:
+                campaigns = res['items']
+            elif isinstance(res, list):
+                campaigns = res
 
-    options = ["— none —"] + [f"{c['name']} (id:{c['id']})" for c in campaigns]
+    # Safely build options list
+    options = ["— none —"]
+    for c in campaigns:
+        if isinstance(c, dict):
+            name = c.get('name', 'Unknown')
+            cid = c.get('campaign_id') or c.get('id', '?')
+            options.append(f"{name} (id:{cid})")
+        else:
+            options.append(f"Campaign {c}")
     selected_campaign = st.selectbox("Select campaign", options)
     if selected_campaign == "— none —":
         st.info("Select a campaign to view detailed metrics.")
-        placeholder_section("Campaign Summary", f"Use GET {api_url}/campaigns/{{id}}/summary to populate.")
     else:
         try:
             cid = int(selected_campaign.split('id:')[-1].strip(')'))
@@ -46,8 +61,6 @@ def render(api_url: str):
                 summary = api.get(f'/campaigns/{cid}/summary')
                 if summary:
                     st.json(summary)
-                else:
-                    st.info(f"Fetch from GET {api_url}/campaigns/{cid}/summary")
             
             # Influencer Performance Table
             st.subheader("Influencer Performance")
@@ -65,5 +78,3 @@ def render(api_url: str):
                         st.dataframe(df)
                     except Exception:
                         st.error('Unexpected influencer performance data format')
-                else:
-                    st.info(f"Fetch from GET {api_url}/campaigns/{cid}/influencer-performance")

@@ -50,17 +50,30 @@ class OutlierClipper(BaseEstimator, TransformerMixin):
         self.upper_quantile = upper_quantile
         self.lower_bounds_: Optional[pd.Series] = None
         self.upper_bounds_: Optional[pd.Series] = None
+        self.feature_names_in_: Optional[list] = None
 
     def fit(self, X, y=None):
         df = pd.DataFrame(X)
         self.lower_bounds_ = df.quantile(self.lower_quantile)
         self.upper_bounds_ = df.quantile(self.upper_quantile)
+        self.feature_names_in_ = list(df.columns) if hasattr(df, 'columns') else None
         return self
 
     def transform(self, X):
         df = pd.DataFrame(X)
         clipped = df.clip(self.lower_bounds_, self.upper_bounds_, axis=1)
         return clipped.values
+    
+    def get_feature_names_out(self, input_features=None):
+        """Return feature names unchanged (clipping doesn't change feature names)."""
+        if input_features is not None:
+            return input_features
+        if self.feature_names_in_ is not None:
+            return self.feature_names_in_
+        # Fallback: return generic names
+        if hasattr(self, 'n_features_in_'):
+            return [f"feature_{i}" for i in range(self.n_features_in_)]
+        return []
 
 
 def build_pipeline(random_state: int = RANDOM_STATE) -> Pipeline:

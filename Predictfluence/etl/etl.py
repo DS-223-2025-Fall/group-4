@@ -1,8 +1,10 @@
 import os
 import re
 import pandas as pd
-from datetime import datetime, time
-from sqlalchemy import func
+import numpy as np
+from datetime import datetime, time, timedelta
+from faker import Faker
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 # from passlib.hash import bcrypt
 from Database.database import engine, SessionLocal, Base
@@ -15,6 +17,8 @@ from Database.models import (
 # Folder to store CSV files
 CSV_FOLDER = os.getenv("CSV_FOLDER", "data")
 os.makedirs(CSV_FOLDER, exist_ok=True)
+
+fake = Faker()
 
 
 # ----------------------------
@@ -60,6 +64,203 @@ def load_csv(session: Session, csv_file: str, orm_class, hash_password=False):
 
 
 # ----------------------------
+# Data Generation (if CSV files don't exist)
+# ----------------------------
+def generate_data_if_needed():
+    """Generate CSV files if they don't exist."""
+    NUM_INFLUENCERS = 150
+    MIN_POSTS = 5
+    MAX_POSTS = 50
+    NUM_BRANDS = 20
+    MIN_CAMPAIGNS = 2
+    MAX_CAMPAIGNS = 5
+    
+    PLATFORMS = ["Instagram", "TikTok", "YouTube"]
+    CATEGORIES = ["Beauty", "Fitness", "Tech", "Food", "Travel", "Gaming", "Fashion", "Lifestyle"]
+    CONTENT_TYPES = ["Image", "Video", "Reel", "Story"]
+    TOPICS = ["Fitness", "Beauty", "Tech", "Food", "Travel", "Gaming", "Fashion", "Lifestyle", "Wellness", "Entertainment"]
+    AGE_GROUPS = ["13-17", "18-24", "25-34", "35-44", "45-54", "55+"]
+    GENDERS = ["Male", "Female", "Other"]
+    COUNTRIES = ["USA", "UK", "Canada", "Germany", "France", "India", "Brazil", "Australia", "Japan", "Spain"]
+    CAMPAIGN_STATUS = ["planned", "active", "completed", "paused"]
+    CAMPAIGN_OBJECTIVES = ["Brand Awareness", "Engagement", "Sales", "Lead Generation", "Product Launch"]
+    
+    # Check if data already exists
+    if os.path.exists(os.path.join(CSV_FOLDER, "influencers.csv")):
+        print("Data files already exist, skipping generation.")
+        return
+    
+    print("Generating comprehensive demo data...")
+    rng = np.random.default_rng(42)
+    
+    # 1. Influencers
+    influencers = []
+    for i in range(1, NUM_INFLUENCERS + 1):
+        follower_tier = rng.choice(["micro", "mid", "macro"], p=[0.5, 0.35, 0.15])
+        if follower_tier == "micro":
+            follower_count = rng.integers(1000, 10000)
+        elif follower_tier == "mid":
+            follower_count = rng.integers(10000, 100000)
+        else:
+            follower_count = rng.integers(100000, 2000000)
+        
+        influencers.append({
+            "influencer_id": i,
+            "name": fake.name(),
+            "username": f"@{fake.user_name()}",
+            "platform": rng.choice(PLATFORMS),
+            "follower_count": follower_count,
+            "category": rng.choice(CATEGORIES),
+            "created_at": fake.date_between(start_date="-3y", end_date="today")
+        })
+    pd.DataFrame(influencers).to_csv(os.path.join(CSV_FOLDER, "influencers.csv"), index=False)
+    
+    # 2. Content
+    contents = []
+    content_id = 1
+    hashtag_templates = ["#fitness #workout", "#beauty #makeup", "#tech #gadgets", "#food #recipe", "#travel #wanderlust", "#gaming #streaming", "#fashion #style", "#lifestyle #motivation"]
+    for inf in influencers:
+        num_posts = rng.integers(MIN_POSTS, MAX_POSTS)
+        for _ in range(num_posts):
+            caption = f"{fake.sentence(nb_words=rng.integers(8, 25))} {rng.choice(hashtag_templates)}"
+            post_date = fake.date_between(start_date="-180d", end_date="today")
+            contents.append({
+                "content_id": content_id,
+                "influencer_id": inf["influencer_id"],
+                "content_type": rng.choice(CONTENT_TYPES, p=np.array([0.35, 0.35, 0.2, 0.1])),
+                "topic": rng.choice(TOPICS),
+                "post_date": post_date,
+                "caption": caption,
+                "url": f"https://{inf['platform'].lower()}.com/posts/{content_id}"
+            })
+            content_id += 1
+    pd.DataFrame(contents).to_csv(os.path.join(CSV_FOLDER, "content.csv"), index=False)
+    
+    # 3. Engagement
+    engagements = []
+    for content in contents:
+        inf = next(i for i in influencers if i["influencer_id"] == content["influencer_id"])
+        followers = inf["follower_count"]
+        base_engagement = 0.03 if followers < 10000 else (0.02 if followers < 100000 else 0.01)
+        if content["content_type"] == "Reel":
+            base_engagement *= 1.3
+        elif content["content_type"] == "Video":
+            base_engagement *= 1.1
+        
+        views = int(followers * rng.uniform(0.1, 0.6))
+        likes = int(views * base_engagement * rng.uniform(0.7, 1.0))
+        comments = int(likes * rng.uniform(0.05, 0.15))
+        shares = int(likes * rng.uniform(0.02, 0.08))
+        engagement_rate = round((likes + comments + shares) / max(1, views), 6)
+        
+        engagements.append({
+            "engagement_id": content["content_id"],
+            "content_id": content["content_id"],
+            "likes": likes,
+            "comments": comments,
+            "shares": shares,
+            "views": views,
+            "engagement_rate": engagement_rate
+        })
+    pd.DataFrame(engagements).to_csv(os.path.join(CSV_FOLDER, "engagement.csv"), index=False)
+    
+    # 4. Audience Demographics
+    audience_list = []
+    audience_id = 1
+    for inf in influencers:
+        num_segments = rng.integers(3, 6)
+        selected_countries = list(rng.choice(COUNTRIES, size=min(num_segments, len(COUNTRIES)), replace=False))
+        percentages = np.random.dirichlet(np.ones(num_segments)) * 100
+        for idx, country in enumerate(selected_countries):
+            audience_list.append({
+                "audience_id": audience_id,
+                "influencer_id": inf["influencer_id"],
+                "age_group": rng.choice(AGE_GROUPS),
+                "gender": rng.choice(GENDERS),
+                "country": country,
+                "percentage": round(float(percentages[idx]), 2)
+            })
+            audience_id += 1
+    pd.DataFrame(audience_list).to_csv(os.path.join(CSV_FOLDER, "audience_demographics.csv"), index=False)
+    
+    # 5. Brands
+    brands = []
+    for i in range(1, NUM_BRANDS + 1):
+        brands.append({
+            "brand_id": i,
+            "name": fake.company(),
+            "industry": rng.choice(CATEGORIES),
+            "country": rng.choice(COUNTRIES),
+            "created_at": fake.date_between(start_date="-5y", end_date="today")
+        })
+    pd.DataFrame(brands).to_csv(os.path.join(CSV_FOLDER, "brands.csv"), index=False)
+    
+    # 6. Campaigns
+    campaigns = []
+    campaign_id = 1
+    for brand in brands:
+        num_campaigns = rng.integers(MIN_CAMPAIGNS, MAX_CAMPAIGNS)
+        for _ in range(num_campaigns):
+            start_date = fake.date_between(start_date="-1y", end_date="+30d")
+            end_date = start_date + timedelta(days=rng.integers(14, 90))
+            today = datetime.now().date()
+            status = "completed" if end_date < today else ("planned" if start_date > today else rng.choice(["active", "paused"]))
+            
+            campaigns.append({
+                "campaign_id": campaign_id,
+                "brand_id": brand["brand_id"],
+                "name": f"{brand['name']} {rng.choice(['Summer', 'Winter', 'Spring', 'Fall', 'Holiday', 'Launch', 'Promo'])} Campaign",
+                "objective": rng.choice(CAMPAIGN_OBJECTIVES),
+                "start_date": start_date,
+                "end_date": end_date,
+                "budget": round(rng.uniform(5000, 100000), 2),
+                "status": status,
+                "created_at": fake.date_between(start_date=start_date - timedelta(days=30), end_date=start_date)
+            })
+            campaign_id += 1
+    pd.DataFrame(campaigns).to_csv(os.path.join(CSV_FOLDER, "campaigns.csv"), index=False)
+    
+    # 7. Campaign Content
+    campaign_links = []
+    link_id = 1
+    for campaign in campaigns:
+        num_links = rng.integers(5, min(len(contents), 15))
+        eligible_indices = list(rng.choice(len(contents), size=num_links, replace=False))
+        for idx in eligible_indices:
+            content = contents[idx]
+            campaign_links.append({
+                "id": link_id,
+                "campaign_id": campaign["campaign_id"],
+                "content_id": content["content_id"],
+                "role": rng.choice(["primary", "supporting", "testimonial"], p=np.array([0.4, 0.5, 0.1])),
+                "is_paid": rng.choice([True, False]),
+                "cost": round(float(rng.uniform(100, 2000)), 2) if rng.random() > 0.3 else 0.0
+            })
+            link_id += 1
+    pd.DataFrame(campaign_links).to_csv(os.path.join(CSV_FOLDER, "campaign_content.csv"), index=False)
+    
+    # 8. Users
+    users = [
+        {"user_id": 1, "email": "admin@predictfluence.com", "hashed_password": "demo123", "role": "admin", "company": fake.company(), "full_name": "Admin User", "created_at": fake.date_between(start_date="-2y", end_date="today")},
+        {"user_id": 2, "email": "analyst@predictfluence.com", "hashed_password": "demo123", "role": "analyst", "company": fake.company(), "full_name": "Data Analyst", "created_at": fake.date_between(start_date="-2y", end_date="today")},
+        {"user_id": 3, "email": "manager@predictfluence.com", "hashed_password": "demo123", "role": "manager", "company": fake.company(), "full_name": "Campaign Manager", "created_at": fake.date_between(start_date="-2y", end_date="today")},
+    ]
+    for i in range(4, 16):
+        users.append({
+            "user_id": i,
+            "email": fake.unique.email(),
+            "hashed_password": fake.password(length=12),
+            "role": rng.choice(["admin", "analyst", "viewer", "manager"]),
+            "company": fake.company(),
+            "full_name": fake.name(),
+            "created_at": fake.date_between(start_date="-2y", end_date="today")
+        })
+    pd.DataFrame(users).to_csv(os.path.join(CSV_FOLDER, "users.csv"), index=False)
+    
+    print(f"Generated data: {len(influencers)} influencers, {len(contents)} posts, {len(campaigns)} campaigns")
+
+
+# ----------------------------
 # ETL process
 # ----------------------------
 def run_etl():
@@ -79,7 +280,20 @@ def run_etl():
         - Engagement statistics are aggregated per influencer.
         - Campaign content assignment is simulated based on content_id + campaign_id.
     """
-    Base.metadata.create_all(engine)
+    # Generate data if CSV files don't exist
+    generate_data_if_needed()
+    
+    # Drop all tables and recreate to ensure schema matches models
+    print("Dropping existing tables...")
+    try:
+        Base.metadata.drop_all(engine, checkfirst=True)
+    except Exception as e:
+        print(f"Warning during drop: {e}, continuing...")
+    print("Creating tables...")
+    try:
+        Base.metadata.create_all(engine, checkfirst=True)
+    except Exception as e:
+        print(f"Warning during create: {e}, continuing...")
     session = SessionLocal()
 
     try:
@@ -250,12 +464,12 @@ def run_etl():
         print(f"  Joinable records (fact_content_features + fact_influencer_performance): {join_count}")
         
         if fact_perf_count > 0 and fact_content_count > 0 and join_count > 0:
-            print("\n✅ ETL completed successfully. All requirements met!")
+            print("\nETL completed successfully. All requirements met!")
         else:
-            print("\n⚠️  ETL completed but some data may be missing. Check warnings above.")
+            print("\nETL completed but some data may be missing. Check warnings above.")
 
     except Exception as e:
-        print(f"\n❌ ETL failed with error: {e}")
+        print(f"\nETL failed with error: {e}")
         session.rollback()
         raise
     finally:

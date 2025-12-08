@@ -1,11 +1,16 @@
 user_id,email,hashed_password,role,company,full_name,created_at
-1,wilsonheather@example.org,mtWEfudh!9sA,viewer,"Harrison, Schmitt and Hill",Anthony Rivera,2022-03-10
-2,brandoncooper@example.com,$n70*ZiI*YCL,viewer,French LLC,Kim Johnson,2024-08-22
-3,thomas61@example.org,Y_LVCkfBp*91,admin,Owens Inc,Wendy Anderson,2023-02-06
-4,tyleremily@example.net,pl1i6BiUc*8*,viewer,Hoffman-Adams,Andre Gardner,2022-06-25
-5,masondavid@example.com,#+4gGpalx73Y,analyst,Schmidt-Vazquez,Mathew Walker,2020-10-18
-6,michele88@example.org,(A%4Du^fAS94,admin,Guerrero PLC,Steven Paul,2020-09-10
-7,thompsoneric@example.com,u%1hRqYsPZZx,viewer,Lindsey-Ortiz,Michael Scott,2021-11-22
-8,odaniels@example.com,M0Kmyb@5@Zba,analyst,"Davis, Cohen and Harris",Jeffrey Garcia,2024-03-17
-9,reginagomez@example.com,1$tIV9yk$Ssh,viewer,Hart-Boyd,Jasmine Morgan,2021-09-13
-10,xguerrero@example.net,#nYPEgaf2zZ4,analyst,"Matthews, Wilson and Murillo",Catherine Murray,2021-03-29
+1,admin@predictfluence.com,demo123,admin,"Haas, Myers and Gill",Admin User,2024-08-12
+2,analyst@predictfluence.com,demo123,analyst,Bauer-Schmidt,Data Analyst,2025-05-11
+3,manager@predictfluence.com,demo123,manager,Roberson Inc,Campaign Manager,2025-02-27
+4,whitesamantha@example.com,_b7Mebj!4Kwd,analyst,"Cunningham, Villanueva and Ho",Vanessa Ochoa,2025-06-22
+5,denisesmith@example.org,*5LT7p+HpBKK,manager,Garcia-Forbes,Brandi Martin,2024-11-03
+6,kbaker@example.net,7cnIDh0*i04#,manager,Wilson PLC,Karen Watkins,2024-08-09
+7,wrodriguez@example.net,yhrVCUEvN+n0,admin,Porter and Sons,Debra Dixon,2024-05-19
+8,moorelindsay@example.net,m0DU3s(f*54),manager,Mitchell PLC,Nicholas Daniel,2025-07-14
+9,kingjennifer@example.org,2#3BZMi6j!jx,admin,"Murphy, Brown and Novak",Mandy Hart,2025-09-01
+10,wterry@example.com,HMT6gKDx8%Pu,viewer,Cross LLC,Matthew Ruiz,2023-12-31
+11,ianlee@example.net,d_b0aCwnEOJT,admin,Moses PLC,Daniel Soto,2024-05-13
+12,mathisjohn@example.net,b#1bRrbYS5Mj,admin,Mitchell-Lam,Jennifer Baxter,2024-05-01
+13,mlambert@example.org,TJ3&l_GcZ+lw,analyst,Holder and Sons,Matthew Ward,2025-08-26
+14,angela59@example.net,5*kG2e9k!C0A,manager,Lowery Inc,Barry Parker,2025-05-29
+15,jasoncox@example.net,!_HQ6Moe!Yc),viewer,"Lyons, Turner and Richardson",Ashley Walters,2024-05-14

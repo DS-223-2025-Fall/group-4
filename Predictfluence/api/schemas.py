@@ -169,6 +169,7 @@ class PerformanceAnalyticsResponse(BaseModel):
     avg_likes: float
     avg_comments: float
     avg_views: float
+    avg_cost_per_influencer: float = 0.0
 
 
 # -----------------------------

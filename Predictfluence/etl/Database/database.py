@@ -34,7 +34,7 @@ import sqlalchemy.ext.declarative as declarative
 import sqlalchemy.orm as orm
 from .models import Base
 
-load_dotenv(".env")
+load_dotenv()
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:

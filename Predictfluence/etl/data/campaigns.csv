@@ -1,11 +1,64 @@
 campaign_id,brand_id,name,objective,start_date,end_date,budget,status,created_at
-1,1,Dixon-Diaz Campaign 1,Sales,2025-05-28,2025-07-09,36066.01,planned,2022-05-06
-2,1,Dixon-Diaz Campaign 2,Engagement,2025-10-21,2025-12-18,49541.7,planned,2020-11-05
-3,1,Dixon-Diaz Campaign 3,Sales,2025-05-28,2025-06-13,17264.01,active,2021-02-26
-4,2,"Simmons, Cole and Soto Campaign 4",Brand Awareness,2025-02-08,2025-02-19,16078.54,completed,2025-03-15
-5,2,"Simmons, Cole and Soto Campaign 5",Engagement,2025-11-04,2025-12-26,29944.47,completed,2021-11-22
-6,3,Warner-Walker Campaign 6,Sales,2025-01-13,2025-01-27,15443.51,active,2025-11-10
-7,4,Larson PLC Campaign 7,Brand Awareness,2025-09-05,2025-10-01,46802.11,planned,2023-06-20
-8,4,Larson PLC Campaign 8,Sales,2025-05-01,2025-06-16,13706.38,planned,2025-05-25
-9,4,Larson PLC Campaign 9,Brand Awareness,2025-03-22,2025-05-12,44854.51,completed,2020-01-11
-10,5,Brown LLC Campaign 10,Engagement,2025-01-29,2025-03-28,40523.77,planned,2025-08-18
+1,1,"Mcdaniel, Gibson and Callahan Holiday Campaign",Product Launch,2025-02-22,2025-03-25,66824.25,completed,2025-02-04
+2,1,"Mcdaniel, Gibson and Callahan Fall Campaign",Sales,2025-05-04,2025-06-07,28621.22,completed,2025-05-01
+3,1,"Mcdaniel, Gibson and Callahan Summer Campaign",Product Launch,2025-11-15,2026-01-01,49201.98,active,2025-10-26
+4,1,"Mcdaniel, Gibson and Callahan Launch Campaign",Sales,2025-09-24,2025-11-20,20572.15,completed,2025-09-17
+5,2,"King, Pollard and Mitchell Summer Campaign",Product Launch,2025-11-20,2026-01-26,65977.01,active,2025-11-17
+6,2,"King, Pollard and Mitchell Launch Campaign",Lead Generation,2025-09-07,2025-12-04,20516.96,completed,2025-08-10
+7,2,"King, Pollard and Mitchell Holiday Campaign",Sales,2025-06-08,2025-08-04,20822.64,completed,2025-05-23
+8,2,"King, Pollard and Mitchell Spring Campaign",Sales,2025-06-14,2025-07-13,54209.27,completed,2025-06-06
+9,3,"Williams, Garcia and Reed Spring Campaign",Sales,2025-11-19,2026-01-25,47522.38,active,2025-11-03
+10,3,"Williams, Garcia and Reed Summer Campaign",Brand Awareness,2025-07-30,2025-09-28,24108.18,completed,2025-07-15
+11,4,"Hodge, Campbell and Stewart Spring Campaign",Product Launch,2025-02-11,2025-03-22,58223.59,completed,2025-02-07
+12,4,"Hodge, Campbell and Stewart Summer Campaign",Engagement,2025-05-09,2025-07-31,7143.35,completed,2025-04-09
+13,5,Hernandez-Goodwin Holiday Campaign,Product Launch,2025-12-21,2026-01-18,96044.06,planned,2025-12-04
+14,5,Hernandez-Goodwin Promo Campaign,Sales,2025-01-13,2025-03-29,6808.35,completed,2024-12-23
+15,6,"James, Williams and Simpson Fall Campaign",Brand Awareness,2025-06-18,2025-07-22,98906.87,completed,2025-05-20
+16,6,"James, Williams and Simpson Promo Campaign",Brand Awareness,2025-10-16,2025-12-27,83582.0,paused,2025-10-11
+17,6,"James, Williams and Simpson Winter Campaign",Engagement,2025-03-22,2025-05-31,63368.0,completed,2025-03-21
+18,7,"Lawrence, Ray and King Promo Campaign",Product Launch,2025-02-26,2025-04-17,43645.03,completed,2025-02-05
+19,7,"Lawrence, Ray and King Winter Campaign",Product Launch,2025-10-29,2025-12-24,81480.74,paused,2025-10-15
+20,8,"Paul, Hawkins and Logan Summer Campaign",Engagement,2025-07-20,2025-09-27,99742.23,completed,2025-07-09
+21,8,"Paul, Hawkins and Logan Promo Campaign",Engagement,2025-12-27,2026-02-09,66823.15,planned,2025-12-07
+22,9,Mathis and Sons Summer Campaign,Product Launch,2025-07-03,2025-08-29,18938.49,completed,2025-06-28
+23,9,Mathis and Sons Launch Campaign,Lead Generation,2025-12-03,2026-02-13,73718.67,paused,2025-12-02
+24,9,Mathis and Sons Launch Campaign,Lead Generation,2025-02-05,2025-03-28,69770.98,completed,2025-01-29
+25,9,Mathis and Sons Spring Campaign,Product Launch,2025-02-09,2025-03-19,50033.31,completed,2025-01-26
+26,9,Mathis and Sons Launch Campaign,Lead Generation,2025-07-04,2025-09-21,73305.05,completed,2025-06-22
+27,10,"Nguyen, Smith and Johnson Spring Campaign",Brand Awareness,2025-07-21,2025-09-25,90389.18,completed,2025-07-08
+28,10,"Nguyen, Smith and Johnson Fall Campaign",Sales,2025-08-17,2025-09-10,75152.36,completed,2025-07-25
+29,10,"Nguyen, Smith and Johnson Winter Campaign",Lead Generation,2025-11-01,2025-12-17,46645.28,active,2025-10-05
+30,11,"Rodriguez, Taylor and Simmons Holiday Campaign",Sales,2025-12-26,2026-03-20,84320.23,planned,2025-12-14
+31,11,"Rodriguez, Taylor and Simmons Winter Campaign",Brand Awareness,2025-06-30,2025-09-24,79839.66,completed,2025-06-24
+32,11,"Rodriguez, Taylor and Simmons Holiday Campaign",Sales,2024-12-10,2025-02-26,97455.31,completed,2024-11-10
+33,11,"Rodriguez, Taylor and Simmons Holiday Campaign",Lead Generation,2025-06-03,2025-07-10,7271.08,completed,2025-05-18
+34,11,"Rodriguez, Taylor and Simmons Spring Campaign",Engagement,2025-04-20,2025-06-21,11995.19,completed,2025-04-13
+35,12,Mckinney-Cooper Winter Campaign,Sales,2025-12-30,2026-02-11,40705.22,planned,2025-12-19
+36,12,Mckinney-Cooper Summer Campaign,Brand Awareness,2025-07-15,2025-08-17,53244.43,completed,2025-07-10
+37,13,"Ramirez, Gray and Thomas Launch Campaign",Product Launch,2025-04-02,2025-05-13,35199.35,completed,2025-03-22
+38,13,"Ramirez, Gray and Thomas Fall Campaign",Sales,2025-03-20,2025-05-31,85946.11,completed,2025-03-10
+39,13,"Ramirez, Gray and Thomas Fall Campaign",Product Launch,2024-12-21,2025-01-21,96324.42,completed,2024-12-17
+40,14,Dennis-Wells Holiday Campaign,Brand Awareness,2025-11-22,2026-02-10,17719.68,active,2025-10-28
+41,14,Dennis-Wells Spring Campaign,Product Launch,2025-06-28,2025-08-13,57592.42,completed,2025-05-31
+42,14,Dennis-Wells Fall Campaign,Engagement,2025-05-23,2025-06-08,91411.12,completed,2025-05-14
+43,15,"Wright, Washington and Wright Launch Campaign",Brand Awareness,2025-12-05,2026-01-04,12088.03,active,2025-11-06
+44,15,"Wright, Washington and Wright Winter Campaign",Brand Awareness,2025-09-28,2025-12-18,78804.81,paused,2025-09-18
+45,15,"Wright, Washington and Wright Launch Campaign",Sales,2025-02-18,2025-04-24,68389.8,completed,2025-01-27
+46,15,"Wright, Washington and Wright Launch Campaign",Brand Awareness,2025-10-01,2025-10-30,60917.49,completed,2025-09-15
+47,15,"Wright, Washington and Wright Holiday Campaign",Product Launch,2025-01-12,2025-03-24,14848.71,completed,2024-12-28
+48,16,Douglas-Wong Spring Campaign,Brand Awareness,2025-05-29,2025-06-30,38905.36,completed,2025-05-18
+49,16,Douglas-Wong Summer Campaign,Brand Awareness,2025-07-15,2025-09-17,49904.03,completed,2025-06-24
+50,16,Douglas-Wong Promo Campaign,Engagement,2025-01-30,2025-04-19,6168.66,completed,2025-01-22
+51,17,"Willis, Gonzalez and Sandoval Spring Campaign",Engagement,2025-12-13,2026-02-19,75811.89,planned,2025-12-05
+52,17,"Willis, Gonzalez and Sandoval Winter Campaign",Sales,2025-03-28,2025-05-19,69778.84,completed,2025-03-07
+53,17,"Willis, Gonzalez and Sandoval Fall Campaign",Product Launch,2025-01-27,2025-04-24,61005.04,completed,2024-12-28
+54,17,"Willis, Gonzalez and Sandoval Winter Campaign",Engagement,2025-12-10,2026-02-08,43636.85,planned,2025-12-03
+55,18,"Wells, Owen and Moran Winter Campaign",Brand Awareness,2026-01-03,2026-04-03,45050.9,planned,2025-12-06
+56,18,"Wells, Owen and Moran Summer Campaign",Engagement,2025-11-28,2026-01-16,87540.56,active,2025-11-03
+57,19,"Walter, Turner and Wright Holiday Campaign",Sales,2024-12-14,2025-01-13,71290.45,completed,2024-11-19
+58,19,"Walter, Turner and Wright Fall Campaign",Brand Awareness,2024-12-10,2025-01-04,69745.4,completed,2024-11-11
+59,20,"Simpson, Ortiz and Walls Spring Campaign",Engagement,2025-10-09,2025-12-30,71660.28,active,2025-10-04
+60,20,"Simpson, Ortiz and Walls Promo Campaign",Engagement,2025-01-20,2025-03-20,9583.07,completed,2025-01-04
+61,20,"Simpson, Ortiz and Walls Summer Campaign",Sales,2025-05-07,2025-05-30,29095.21,completed,2025-04-08
+62,20,"Simpson, Ortiz and Walls Winter Campaign",Product Launch,2025-07-22,2025-10-18,88987.8,completed,2025-07-21
+63,20,"Simpson, Ortiz and Walls Holiday Campaign",Lead Generation,2025-08-18,2025-10-16,48649.25,completed,2025-08-12

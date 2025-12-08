@@ -78,18 +78,35 @@ def render(api_url: str):
         submitted = st.form_submit_button("Save Changes")
 
         if submitted:
-            payload = {
-                'full_name': full_name,
-                'email': email,
-                'role': role if role!='Select Role' else None,
-                'company': company
-            }
-            if st.session_state.get('demo_mode'):
-                st.success('Saved (demo)')
+            # Input validation
+            errors = []
+            if not full_name or len(full_name.strip()) == 0:
+                errors.append("Full name is required")
+            if not email or len(email.strip()) == 0:
+                errors.append("Email is required")
+            elif '@' not in email or '.' not in email.split('@')[1]:
+                errors.append("Please enter a valid email address")
+            if role == 'Select Role':
+                errors.append("Please select a role")
+            if not company or len(company.strip()) == 0:
+                errors.append("Company name is required")
+            
+            if errors:
+                for error in errors:
+                    st.error(error)
             else:
-                res = api.put('/user/profile', payload)
-                if res is not None:
-                    st.success('Profile updated')
-                    st.experimental_rerun()  # Reload to show updated data
+                payload = {
+                    'full_name': full_name.strip(),
+                    'email': email.strip().lower(),
+                    'role': role if role!='Select Role' else None,
+                    'company': company.strip()
+                }
+                if st.session_state.get('demo_mode'):
+                    st.success('Saved (demo)')
                 else:
-                    st.error('Failed to save profile')
+                    res = api.put('/user/profile', payload)
+                    if res is not None:
+                        st.success('Profile updated successfully')
+                        st.rerun()  # Reload to show updated data
+                    else:
+                        st.error('Failed to save profile. Please try again.')

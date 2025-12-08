@@ -44,6 +44,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
     depends_on:
       - db
+      - etl
 
   app:
     container_name: streamlit_app
@@ -59,6 +60,22 @@ services:
     depends_on:
       - api
 
+  etl:
+    container_name: etl_service
+    build:
+      context: ./Predictfluence/etl
+      dockerfile: Dockerfile
+    volumes:
+      - ./Predictfluence/etl:/etl
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - CSV_FOLDER=/etl/data
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python etl.py
+    restart: "no"
+
   ds:
     container_name: ds_service
     build:
@@ -73,3 +90,4 @@ services:
       - DATABASE_URL=${DATABASE_URL}
     depends_on:
       - db
+      - etl

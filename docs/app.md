@@ -1,52 +1,239 @@
-# Streamlit UI ↔ API Mapping
+# Streamlit Application Documentation
 
-This guide helps frontend/PM see how each Streamlit page connects to the planned API endpoints and which components to use.
+The Predictfluence frontend is built with Streamlit, providing an interactive web interface for managing influencer marketing campaigns.
 
-## Global
-- Config: `API_URL` env (already in `app.py`). Centralize fetch helpers with `requests` and `st.cache_data`.
-- Common UI: `st.spinner` around API calls; show `st.error` on failures.
+## Access
 
-## Login page (`pages/login.py`)
-- Endpoints: `POST /auth/login` (optional demo fallback).
-- Components: `st.text_input`, `st.button`. On success set session auth token for downstream requests.
+- **URL**: http://localhost:8501
+- **Port**: 8501 (configurable in `docker-compose.yml`)
 
-## Dashboard (`pages/dashboard.py`)
-- KPIs:  
-  - Active campaigns → `GET /campaigns?status=active` (count) or `GET /campaigns/summary`.
-  - Total influencers → `GET /influencers/count`.
-  - Avg engagement → `GET /analytics/performance` (field `avg_engagement_rate`).
-  - Avg cost/influencer → `GET /campaigns/{id}/summary` aggregated or `GET /analytics/performance` (extend to include cost).
-- Charts:  
-  - Engagement over time → `GET /analytics/engagement?range=30d`; render with `st.altair_chart` or `plotly.express.line`.
-  - Top campaigns → `GET /analytics/top-campaigns?limit=5`; use bar chart/table.
+## Features
 
-## Influencers (`pages/influencers.py`)
-- Directory/table → `GET /influencers` with filters (platform, category, follower range, q). Render via `st.dataframe`/`st.data_editor`.
-- Detail modal/link → `GET /influencers/{id}` with `include=performance,audience`.
-- Audience breakdown → `GET /influencers/{id}/audience` (charts: pie/bar).
-- Content list → `GET /influencers/{id}/content` (use columns/cards; optional `st.image`/`st.video`).
+### 1. Login Page
+- Email/password authentication
+- Demo mode for quick preview
+- User profile creation
 
-## Campaigns (`pages/campaigns.py`)
-- List dropdown → `GET /campaigns?status=active` (or all); show name/id.
-- Summary panel → `GET /campaigns/{id}/summary`.
-- Influencer performance table → `GET /campaigns/{id}/influencer-performance` (table with role, paid flag, metrics).
-- Attach content (future form) → `POST /campaigns/{id}/content`.
+### 2. Dashboard
+**Purpose**: High-level overview of marketing operations
 
-## Recommendations (`pages/recommendations.py`)
-- Filters → match payload for `POST /recommendations`.
-- Results grid → display returned influencers/content with predicted engagement and rationale; optionally include CTA to view influencer detail.
-- Optionally trigger `POST /ml/predict` per card to refresh scores.
+**Features:**
+- **KPIs**:
+  - Active Campaigns count
+  - Total Influencers count
+  - Average Engagement Rate
+  - Average Cost per Influencer
+- **Charts**:
+  - Engagement trends over time (30 days)
+  - Top performing campaigns (bar chart)
 
-## Insights (`pages/insights.py`)
-- Audience tab → `GET /analytics/audience?group_by=country|age_group|gender`; use bar/treemap.
-- Creative tab → `GET /analytics/creative`; show engagement by content type/topic (bar or heatmap).
+**Data Sources:**
+- `GET /campaigns?status=active`
+- `GET /influencers/count`
+- `GET /analytics/performance`
+- `GET /analytics/engagement?range=30d`
+- `GET /analytics/top-campaigns?limit=5`
 
-## Settings (`pages/settings.py`)
-- Load profile → `GET /user/profile`.
-- Save profile → `PUT /user/profile`.
+### 3. Influencers Page
+**Purpose**: Browse and discover influencers
 
-## Components to consider
-- Tables/grids: `st.dataframe`, `st.data_editor`, or `st-aggrid` for richer controls.
-- Charts: `st.altair_chart`, `plotly.express` for interactive hover/zoom.
-- Filters: `st.multiselect`, `st.slider` (follower range), `st.date_input`, `st.segmented_control`.
-- Layout: `st.columns` for KPI cards, `st.tabs` (already used), `st.expander` for advanced filters.
+**Features:**
+- **Filters**:
+  - Platform (Instagram, TikTok, YouTube, All)
+  - Category dropdown
+  - Follower range slider
+  - Search by name/username
+- **View Modes**:
+  - Table view: Sortable data table
+  - Card view: Visual influencer cards
+- **Influencer Details**:
+  - Profile information
+  - Performance metrics
+  - Audience demographics (bar charts)
+  - Content history with engagement
+
+**Data Sources:**
+- `GET /influencers` (with filters)
+- `GET /influencers/{id}?include=performance,audience`
+- `GET /influencers/{id}/content`
+
+### 4. Campaigns Page
+**Purpose**: Manage marketing campaigns
+
+**Features:**
+- Campaign selection dropdown
+- Campaign summary:
+  - Budget, status, dates
+  - Influencer count
+  - Average engagement rate
+  - Average views
+- Influencer performance table:
+  - Performance metrics per influencer
+  - Role (primary/supporting)
+  - Paid status
+
+**Data Sources:**
+- `GET /campaigns`
+- `GET /campaigns/{id}/summary`
+- `GET /campaigns/{id}/influencer-performance`
+
+### 5. Recommendations Page
+**Purpose**: AI-powered influencer recommendations
+
+**Features:**
+- **Filters**:
+  - Platform selection
+  - Audience size band
+  - Content type
+  - Category
+  - Country
+- **Results**:
+  - Top 10 recommended influencers
+  - Predicted engagement rate
+  - Rationale for recommendation
+  - Influencer tier (Elite/Professional/Emerging)
+
+**Data Sources:**
+- `POST /recommendations`
+
+### 6. Insights Page
+**Purpose**: Advanced analytics and data exploration
+
+**Features:**
+- **Audience Analytics Tab**:
+  - Demographics breakdown
+  - Group by: Country, Age Group, Gender
+  - Interactive bar charts
+- **Creative Performance Tab**:
+  - Engagement by content type
+  - Engagement by topic
+  - Performance comparison charts
+
+**Data Sources:**
+- `GET /analytics/audience?group_by={dimension}`
+- `GET /analytics/creative`
+
+### 7. Settings Page
+**Purpose**: User profile management
+
+**Features:**
+- View current profile
+- Update profile information:
+  - Email
+  - Full name
+  - Role
+  - Company
+
+**Data Sources:**
+- `GET /user/profile`
+- `PUT /user/profile`
+
+## Technical Details
+
+### Architecture
+- **Framework**: Streamlit
+- **Language**: Python 3.12
+- **API Client**: Custom `pages/api.py` module
+- **Styling**: Custom CSS via `pages/components.py`
+
+### API Integration
+All API calls go through the centralized `pages/api.py` module:
+- Automatic error handling
+- Request/response logging
+- Demo mode fallbacks
+- Retry logic
+
+### State Management
+Uses Streamlit's session state:
+- `authenticated`: User login status
+- `demo_mode`: Demo mode flag
+- `auth_token`: Authentication token
+- `page`: Current page navigation
+
+### Error Handling
+- Graceful degradation on API errors
+- User-friendly error messages
+- Fallback to demo data when available
+- Defensive checks for API response formats
+
+## Development
+
+### Running Locally
+```bash
+cd Predictfluence/app
+pip install -r requirements.txt
+export API_URL=http://localhost:8008
+streamlit run app.py
+```
+
+### File Structure
+```
+app/
+├── app.py              # Main entry point, navigation
+├── pages/
+│   ├── api.py          # API client wrapper
+│   ├── components.py   # Reusable UI components
+│   ├── login.py        # Login page
+│   ├── dashboard.py    # Dashboard page
+│   ├── influencers.py  # Influencers page
+│   ├── campaigns.py    # Campaigns page
+│   ├── recommendations.py  # Recommendations page
+│   ├── insights.py     # Insights page
+│   └── settings.py     # Settings page
+└── requirements.txt    # Python dependencies
+```
+
+### Adding New Pages
+1. Create `pages/new_page.py`
+2. Define `render(api_url: str)` function
+3. Add to `PAGES` dict in `app.py`
+4. Update sidebar navigation
+
+## UI Components
+
+### Reusable Components
+- `kpi_card(title, value)`: KPI display card
+- `placeholder_section(title)`: Section container
+- `inject_styles()`: Global theme styles
+
+### Styling
+- Material Design inspired
+- Responsive layout
+- Custom color scheme (teal/blue gradient)
+- Card-based UI elements
+
+## Demo Mode
+
+When demo mode is enabled:
+- Skips authentication
+- Uses synthetic data
+- Shows all features
+- Useful for demonstrations and testing
+
+Enable via:
+- Login page: "Preview All Pages" button
+- Sidebar: "Preview All Pages (Demo)" button
+
+## Production Considerations
+
+### Security
+- Implement proper authentication
+- Add CSRF protection
+- Sanitize user inputs
+- Rate limiting
+
+### Performance
+- Cache API responses
+- Lazy load data
+- Pagination for large lists
+- Optimize chart rendering
+
+### Monitoring
+- Error tracking (Sentry)
+- Usage analytics
+- Performance monitoring
+- User feedback collection
+
+---
+
+For API documentation, see [API Documentation](api.md)

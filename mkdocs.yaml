@@ -1,12 +1,14 @@
-site_name: My Docs
+site_name: Predictfluence Documentation
 
 nav:
   - Home: index.md
-  # - Presentation: index1.html
   - Problem Definition: problem_definition.md
-  - ETL: etl.md
-  - API: api.md
-  - APP: app.md
+  - Services:
+    - API Service: api.md
+    - Streamlit App: app.md
+    - Data Science Service: ds.md
+    - ETL Service: etl.md
+    - Database: database.md
 
 theme:
   name: material

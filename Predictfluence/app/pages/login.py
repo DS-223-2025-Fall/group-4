@@ -17,13 +17,24 @@ def render(api_url: str):
         st.markdown("Enter your credentials to access the dashboard.")
         email = st.text_input("Email", placeholder="your.email@example.com")
         password = st.text_input("Password", type="password", placeholder="Enter your password")
+        
         if st.button("Login", use_container_width=True):
-            # call centralized auth helper
-            res = api.auth_login(email, password)
-            if res:
-                st.session_state.authenticated = True
-                st.success("Login successful.")
-                st.experimental_rerun()
+            # Input validation
+            if not email or len(email.strip()) == 0:
+                st.error("Email is required")
+            elif '@' not in email or '.' not in email.split('@')[1]:
+                st.error("Please enter a valid email address")
+            elif not password or len(password.strip()) == 0:
+                st.error("Password is required")
+            else:
+                # call centralized auth helper
+                res = api.auth_login(email.strip(), password)
+                if res:
+                    st.session_state.authenticated = True
+                    st.success("Login successful.")
+                    st.rerun()
+                else:
+                    st.error("Login failed. Please check your credentials.")
 
     with col2:
         st.markdown("### Preview / Demo")

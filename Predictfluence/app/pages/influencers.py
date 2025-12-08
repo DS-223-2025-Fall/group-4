@@ -12,7 +12,7 @@ def render(api_url: str):
     """, unsafe_allow_html=True)
 
     st.write("View mode:")
-    mode = st.radio("", ["Table", "Cards"], horizontal=True)
+    mode = st.radio("View Mode", ["Table", "Cards"], horizontal=True, label_visibility="visible")
 
     # Filters
     with st.expander("Filters", expanded=True):
@@ -23,14 +23,12 @@ def render(api_url: str):
         q = cols[3].text_input("Search (name / handle)")
 
         if st.button("Apply Filters"):
-            st.experimental_rerun()
+            st.rerun()
 
     influencers_list = []
     if mode == "Table":
-        ph = placeholder_section("Influencer Table", "Call GET /influencers with filters and display pandas.DataFrame here.")
         if st.session_state.get('demo_mode'):
             df = pd.DataFrame([{'id':1,'name':'alice','platform':'Instagram','followers':12000,'category':'Beauty'},{'id':2,'name':'bob','platform':'TikTok','followers':54000,'category':'Gaming'}])
-            ph.empty()
             influencers_list = df.to_dict('records')
             st.dataframe(df)
         else:
@@ -45,14 +43,25 @@ def render(api_url: str):
             res = api.get('/influencers', params=params)
             if res:
                 try:
-                    df = pd.DataFrame(res)
-                    ph.empty()
-                    influencers_list = df.to_dict('records')
-                    st.dataframe(df)
-                except Exception:
-                    ph.write('Unexpected influencers data format')
+                    # Handle both list and dict with 'items' field
+                    if isinstance(res, dict) and 'items' in res:
+                        df = pd.DataFrame(res['items'])
+                        influencers_list = df.to_dict('records')
+                    elif isinstance(res, list):
+                        df = pd.DataFrame(res)
+                        influencers_list = df.to_dict('records')
+                    else:
+                        df = pd.DataFrame([res])
+                        influencers_list = df.to_dict('records')
+                    if not df.empty:
+                        st.dataframe(df)
+                    else:
+                        st.info("No influencers found matching your filters.")
+                except Exception as e:
+                    st.error(f'Error displaying influencers: {e}')
+                    st.json(res)
+                    st.json(res)
     else:
-        ph = placeholder_section("Influencer Cards", "Render influencer cards in a responsive grid. Use columns to layout.")
         if st.session_state.get('demo_mode'):
             cols = st.columns(3)
             demo = [
@@ -76,28 +85,45 @@ def render(api_url: str):
             })
             if res:
                 try:
-                    influencers_list = res if isinstance(res, list) else [res]
+                    # Handle both list and dict with 'items' field
+                    if res:
+                        if isinstance(res, dict) and 'items' in res:
+                            influencers_list = res['items']
+                        elif isinstance(res, list):
+                            influencers_list = res
+                        else:
+                            influencers_list = [res] if res else []
+                    else:
+                        influencers_list = []
                     ph.empty()
                     cols = st.columns(3)
                     for i, inf in enumerate(influencers_list):
                         with cols[i % 3]:
                             st.markdown(f"**{inf.get('name', 'Unknown')}**")
-                            st.write(inf.get('handle', ''))
-                            st.write(f"{inf.get('followers', 0):,} followers")
-                except Exception:
-                    ph.write('Unexpected influencers data format')
+                            st.write(inf.get('username', inf.get('handle', '')))
+                            st.write(f"{inf.get('follower_count', inf.get('followers', 0)):,} followers")
+                except Exception as e:
+                    ph.write(f'Unexpected influencers data format: {e}')
+                    st.json(res)
 
     # Detail view section
     if influencers_list:
         st.markdown("---")
         st.subheader("Influencer Details")
-        inf_options = ["— none —"] + [f"{inf.get('name', 'Unknown')} (id:{inf.get('id', '?')})" for inf in influencers_list]
+        inf_options = ["— none —"]
+        for inf in influencers_list:
+            if isinstance(inf, dict):
+                name = inf.get('name', 'Unknown')
+                inf_id = inf.get('influencer_id') or inf.get('id', '?')
+                inf_options.append(f"{name} (id:{inf_id})")
+            else:
+                inf_options.append(f"Influencer {inf}")
         selected_inf = st.selectbox("Select influencer to view details", inf_options)
         
         if selected_inf != "— none —":
             try:
                 inf_id = int(selected_inf.split('id:')[-1].strip(')'))
-            except Exception:
+            except (ValueError, AttributeError):
                 inf_id = None
             
             if inf_id:
@@ -156,8 +182,6 @@ def render(api_url: str):
                                             st.json(audience_res)
                                     else:
                                         st.dataframe(pd.DataFrame(audience_res))
-                                else:
-                                    st.info(f"Fetch from GET {api_url}/influencers/{inf_id}/audience")
                     
                     # Content List
                     st.markdown("### Content")
@@ -186,5 +210,3 @@ def render(api_url: str):
                                             st.write(f"Engagement: {content['engagement']}")
                             except Exception:
                                 st.json(content_res)
-                        else:
-                            st.info(f"Fetch from GET {api_url}/influencers/{inf_id}/content")

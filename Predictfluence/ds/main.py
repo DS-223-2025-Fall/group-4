@@ -135,10 +135,52 @@ model_bundle: Optional[ModelBundle] = None
 def startup_event():
     """
     Ensure tables exist and warm the in-memory model from disk or synthetic data.
+    Auto-train model if database has sufficient data.
     """
+    import time
+    
     create_tables()
 
-    _load_or_initialize_model()
+    # Wait for ETL to complete, retry up to 30 seconds
+    max_retries = 6
+    retry_delay = 5
+    df = None
+    
+    for attempt in range(max_retries):
+        db = next(get_db())
+        try:
+            df = load_training_data_from_db(db)
+            if len(df) >= MIN_TRAINING_ROWS:
+                break
+            if attempt < max_retries - 1:
+                print(f"Waiting for ETL data... (attempt {attempt + 1}/{max_retries})")
+                time.sleep(retry_delay)
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"Database not ready yet: {e}, retrying...")
+                time.sleep(retry_delay)
+            else:
+                print(f"Failed to load data: {e}, using synthetic model")
+                _load_or_initialize_model()
+                return
+        finally:
+            db.close()
+    
+    # Auto-train model if we have real data
+    if df is not None and len(df) >= MIN_TRAINING_ROWS:
+        print(f"Auto-training model with {len(df)} rows from database...")
+        try:
+            bundle, r2, mae = train_model(df)
+            save_model(bundle)
+            save_feature_importance(bundle)
+            _set_model_bundle(bundle)
+            print(f"Model trained: R²={r2:.3f}, MAE={mae:.3f}, version={bundle.version}")
+        except Exception as e:
+            print(f"Training failed: {e}, using synthetic model")
+            _load_or_initialize_model()
+    else:
+        print(f"Only {len(df) if df is not None else 0} rows available, using synthetic model")
+        _load_or_initialize_model()
 
 
 @app.get("/health")

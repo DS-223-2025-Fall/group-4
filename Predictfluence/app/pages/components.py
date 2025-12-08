@@ -169,8 +169,6 @@ def section_header(title: str, subtitle: str = ""):
 
 def placeholder_section(title: str, description: str = None):
     st.subheader(title)
-    if description:
-        st.info(description)
+    # Don't show description/placeholder text - just return empty container
     ph = st.empty()
-    ph.write("— data will load from backend API here —")
     return ph
