@@ -1,5 +1,4 @@
 import streamlit as st
-from pages.components import placeholder_section
 from pages import api
 import pandas as pd
 
@@ -95,7 +94,6 @@ def render(api_url: str):
                             influencers_list = [res] if res else []
                     else:
                         influencers_list = []
-                    ph.empty()
                     cols = st.columns(3)
                     for i, inf in enumerate(influencers_list):
                         with cols[i % 3]:
@@ -103,7 +101,7 @@ def render(api_url: str):
                             st.write(inf.get('username', inf.get('handle', '')))
                             st.write(f"{inf.get('follower_count', inf.get('followers', 0)):,} followers")
                 except Exception as e:
-                    ph.write(f'Unexpected influencers data format: {e}')
+                    st.error(f'Unexpected influencers data format: {e}')
                     st.json(res)
 
     # Detail view section
