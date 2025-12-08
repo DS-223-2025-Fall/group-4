@@ -106,6 +106,7 @@ class ContentBase(BaseModel):
     content_type: str
     topic: Optional[str] = None
     post_date: Optional[date] = None
+    post_datetime: Optional[datetime] = None  # For hour-level posting schedule analysis
     caption: Optional[str] = None
     url: Optional[str] = None
 
