@@ -319,6 +319,8 @@ def get_influencer(influencer_id: int, include: Optional[str] = Query(None), db:
             .filter(AudienceDemographicsDB.influencer_id == influencer_id)
             .all()
         )
+    else:
+        audience = None
 
     return InfluencerDetail(influencer=influencer, performance=performance, audience=audience)
 
@@ -580,6 +582,24 @@ def create_campaign(payload: CampaignCreate, db: Session = Depends(get_db)):
         return campaign
     except IntegrityError as e:
         db.rollback()
+        # Fix sequence if it's a primary key conflict
+        if "campaigns_pkey" in str(e) or "campaign_id" in str(e):
+            try:
+                db.execute(text("SELECT setval('campaigns_campaign_id_seq', (SELECT COALESCE(MAX(campaign_id), 0) + 1 FROM campaigns));"))
+                db.commit()
+                # Retry once
+                campaign = CampaignDB(**payload.dict())
+                db.add(campaign)
+                db.commit()
+                db.refresh(campaign)
+                log_api_call(db, "system", "/campaigns", "201", "POST")
+                return campaign
+            except Exception as retry_e:
+                db.rollback()
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Failed to create campaign after sequence fix: {str(retry_e)}"
+                )
         raise HTTPException(
             status_code=400,
             detail="Failed to create campaign. The data may conflict with existing records."
@@ -687,6 +707,7 @@ def campaign_influencer_performance(campaign_id: int, db: Session = Depends(get_
         db.query(
             ContentDB.influencer_id,
             ContentDB.content_id,
+            InfluencerDB.name,
             InfluencerDB.platform,
             EngagementDB.engagement_rate,
             EngagementDB.likes,
@@ -695,6 +716,7 @@ def campaign_influencer_performance(campaign_id: int, db: Session = Depends(get_
             CampaignContentDB.role,
             CampaignContentDB.is_paid,
         )
+        .select_from(CampaignContentDB)
         .join(ContentDB, ContentDB.content_id == CampaignContentDB.content_id)
         .join(InfluencerDB, InfluencerDB.influencer_id == ContentDB.influencer_id)
         .outerjoin(EngagementDB, EngagementDB.content_id == ContentDB.content_id)
@@ -706,13 +728,14 @@ def campaign_influencer_performance(campaign_id: int, db: Session = Depends(get_
         CampaignInfluencerPerformanceRow(
             influencer_id=r[0],
             content_id=r[1],
-            platform=r[2],
-            engagement_rate=r[3],
-            likes=r[4],
-            comments=r[5],
-            views=r[6],
-            role=r[7],
-            is_paid=r[8],
+            influencer_name=r[2],
+            platform=r[3],
+            engagement_rate=r[4],
+            likes=r[5],
+            comments=r[6],
+            views=r[7],
+            role=r[8],
+            is_paid=r[9],
         )
         for r in rows
     ]
@@ -720,20 +743,44 @@ def campaign_influencer_performance(campaign_id: int, db: Session = Depends(get_
 
 @app.post("/campaigns/{campaign_id}/content")
 def attach_content(campaign_id: int, payload: CampaignContentCreate, db: Session = Depends(get_db)):
-    """Link content to a campaign."""
+    """Link content to a campaign. content_id is optional (0 or None means find any content by influencer)."""
     campaign = db.query(CampaignDB).filter(CampaignDB.campaign_id == campaign_id).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    content = db.query(ContentDB).filter(ContentDB.content_id == payload.content_id).first()
+    # Validate influencer exists
+    influencer_id = payload.influencer_id
+    if not influencer_id:
+        raise HTTPException(status_code=400, detail="influencer_id is required")
+    
+    influencer = db.query(InfluencerDB).filter(InfluencerDB.influencer_id == influencer_id).first()
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer not found")
+
+    # content_id is optional - if 0 or None, find first content by this influencer
+    content_id_val = payload.content_id if payload.content_id and payload.content_id > 0 else None
+    if not content_id_val:
+        # Find any content by this influencer
+        first_content = db.query(ContentDB).filter(ContentDB.influencer_id == influencer_id).first()
+        if first_content:
+            content_id_val = first_content.content_id
+        else:
+            raise HTTPException(status_code=404, detail=f"No content found for influencer {influencer_id}. Please provide a valid content_id.")
+    
+    content = db.query(ContentDB).filter(ContentDB.content_id == content_id_val).first()
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
-
+    
+    # Verify content belongs to the influencer
+    if content.influencer_id != influencer_id:
+        raise HTTPException(status_code=400, detail="Content does not belong to the specified influencer")
+    
+    # Check for duplicate content link
     existing = (
         db.query(CampaignContentDB)
         .filter(
             CampaignContentDB.campaign_id == campaign_id,
-            CampaignContentDB.content_id == payload.content_id,
+            CampaignContentDB.content_id == content_id_val,
         )
         .first()
     )
@@ -742,12 +789,44 @@ def attach_content(campaign_id: int, payload: CampaignContentCreate, db: Session
 
     link = CampaignContentDB(
         campaign_id=campaign_id,
-        content_id=payload.content_id,
+        content_id=content_id_val,
         role=payload.role,
         is_paid=payload.is_paid,
     )
     db.add(link)
-    db.commit()
+    
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        # Check if it's a duplicate key error on the primary key (sequence issue)
+        error_str = str(e.orig) if hasattr(e, 'orig') else str(e)
+        if "duplicate key value violates unique constraint" in error_str and "campaign_content_pkey" in error_str:
+            # Reset the sequence to the max ID + 1
+            try:
+                max_id_result = db.execute(
+                    text("SELECT COALESCE(MAX(id), 0) FROM campaign_content")
+                ).scalar()
+                max_id = max_id_result if max_id_result else 0
+                # Use string formatting for sequence name (it's safe as it's a fixed table name)
+                db.execute(
+                    text(f"SELECT setval('campaign_content_id_seq', {max_id}, true)")
+                )
+                db.commit()
+                # Retry the insert
+                db.add(link)
+                db.commit()
+                return {"message": "linked"}
+            except Exception as seq_error:
+                db.rollback()
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Database sequence error. Please restart the ETL service to fix: {seq_error}"
+                )
+        else:
+            # Re-raise if it's a different integrity error
+            raise HTTPException(status_code=400, detail=f"Database integrity error: {error_str}")
+    
     return {"message": "linked"}
 
 
@@ -901,7 +980,23 @@ def recommendations(payload: RecommendationRequest, db: Session = Depends(get_db
     if payload.category:
         query = query.filter(InfluencerDB.category == payload.category)
     
-    influencers = query.limit(50).all()  # Get more candidates for ML scoring
+    # Add audience size filtering if provided
+    if payload.audience_size_band:
+        if payload.audience_size_band == 'micro':
+            query = query.filter(InfluencerDB.follower_count >= 1000, InfluencerDB.follower_count < 10000)
+        elif payload.audience_size_band == 'mid':
+            query = query.filter(InfluencerDB.follower_count >= 10000, InfluencerDB.follower_count < 100000)
+        elif payload.audience_size_band == 'macro':
+            query = query.filter(InfluencerDB.follower_count >= 100000, InfluencerDB.follower_count < 500000)
+        elif payload.audience_size_band == 'mega':
+            query = query.filter(InfluencerDB.follower_count >= 500000)
+    
+    # Order by follower count descending and add randomness for variety
+    import random
+    influencers = query.order_by(InfluencerDB.follower_count.desc()).limit(100).all()
+    # Shuffle to get different results each time
+    random.shuffle(influencers)
+    influencers = influencers[:50]  # Get top 50 after shuffle
     
     if not influencers:
         return RecommendationResponse(recommendations=[])

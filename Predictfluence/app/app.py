@@ -14,24 +14,25 @@ inject_styles()
 
 # ---------- Navigation config ----------
 PAGES = {
-    "Login": "pages.login",
+    "Demo Intro": "pages.demo",
     "Dashboard": "pages.dashboard",
     "Influencers": "pages.influencers",
     "Campaigns": "pages.campaigns",
     "Recommendations": "pages.recommendations",
     "Insights": "pages.insights",
-    "Settings": "pages.settings",
 }
 
-# default session state
+# default session state (always use real API)
 if "page" not in st.session_state:
-    st.session_state.page = "Login"
+    st.session_state.page = "Demo Intro"
 if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if "demo_mode" not in st.session_state:
-    st.session_state.demo_mode = False
+    st.session_state.authenticated = True
+# Always use real API - no demo mode
+st.session_state.demo_mode = False
 if "auth_token" not in st.session_state:
     st.session_state.auth_token = None
+if "prefill_influencer_id" not in st.session_state:
+    st.session_state.prefill_influencer_id = None
 
 # Sidebar (fixed)
 with st.sidebar:
@@ -59,18 +60,7 @@ with st.sidebar:
     st.session_state.page = page_choice
 
     st.markdown("---")
-    if st.session_state.authenticated:
-        st.write("Logged in ✓")
-        if st.button("Logout"):
-            st.session_state.authenticated = False
-            st.session_state.demo_mode = False
-            st.session_state.auth_token = None
-            st.session_state.page = "Login"
-    else:
-        if st.button("Preview All Pages (Demo)"):
-            st.session_state.demo_mode = True
-            st.session_state.authenticated = True
-            st.session_state.page = "Dashboard"
+    st.write("Using Live API")
     st.markdown("---")
     st.markdown(
         """

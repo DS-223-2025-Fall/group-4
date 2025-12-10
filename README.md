@@ -108,27 +108,27 @@ API_URL=http://api:8000
 ## Features
 
 ### Dashboard
-- Real-time KPIs (Active Campaigns, Total Influencers, Avg Engagement, Avg Cost)
-- Engagement trends over time
-- Top-performing campaigns
+- Real-time KPIs (Total Campaigns, Total Influencers, Avg Engagement, Avg Cost)
+- Engagement trends over time (last 30 days)
+- Top-performing campaigns by engagement rate
 
 ### Influencers
 - Browse and filter influencers by platform, category, follower count
-- View detailed profiles with performance metrics
-- Audience demographics analysis
-- Content history
+- View all influencers (up to 200 per page)
+- View detailed profiles with performance metrics (Avg Engagement Rate, Avg Likes, Avg Views)
+- Table and Card view modes
 
 ### Campaigns
 - Create and manage marketing campaigns
-- Track campaign performance
-- Link content to campaigns
-- View influencer performance within campaigns
+- Track campaign performance with summary metrics (Budget, Influencers, Avg Engagement, Avg Views)
+- View linked influencers and their performance within campaigns
+- Hire influencers directly from Recommendations page
 
 ### Recommendations
 - AI-powered influencer recommendations
 - Filter by platform, audience size, content type, category
-- Predicted engagement rates
-- Influencer tier classification (Elite/Professional/Emerging)
+- Predicted engagement rates with rationale
+- View influencer details and hire directly to campaigns
 
 ### Insights
 - Audience analytics (demographics by country, age, gender)

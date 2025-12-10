@@ -70,8 +70,17 @@ def get(path: str, params: Optional[Dict[str, Any]] = None):
         try:
             return _cached_get(full_url, params_tuple, token)
         except requests.exceptions.HTTPError as e:
-            # Don't show error for 404/422, just return None
-            if e.response.status_code in [404, 422]:
+            # Don't show error for 404, just return None
+            # For 422 (validation errors), show the error to help debug
+            if e.response.status_code == 404:
+                return None
+            elif e.response.status_code == 422:
+                # Show validation error details
+                try:
+                    error_detail = e.response.json().get('detail', str(e))
+                    st.warning(f"Validation error: {error_detail}")
+                except:
+                    st.warning(f"Validation error: {e}")
                 return None
             raise
     
@@ -122,11 +131,6 @@ def auth_login(email: str, password: str):
         st.error("API client not initialized (BASE_URL is None)")
         return None
     full_url = f"{BASE_URL}/auth/login"
-
-    # Demo fallback
-    if st.session_state.get('demo_mode'):
-        st.session_state.auth_token = "demo-token"
-        return {"token": "demo-token", "user": {"email": email, "name": "Demo User"}}
 
     def _do_login():
         resp = requests.post(full_url, json={"email": email, "password": password}, timeout=12)

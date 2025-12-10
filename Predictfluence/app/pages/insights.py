@@ -14,6 +14,7 @@ def render(api_url: str):
     tab1, tab2 = st.tabs(["Audience Insights", "Creative Insights"])
     with tab1:
         st.subheader("Audience Demographics")
+        st.caption("Where the audience comes from and who they are. Use to align campaign targeting.")
         group_by = st.selectbox("Group by", ["country", "age_group", "gender"], key="audience_group")
         
         if st.session_state.get('demo_mode'):
@@ -50,13 +51,24 @@ def render(api_url: str):
                         else:
                             st.dataframe(df)
                     else:
-                        st.json(res)
+                        if isinstance(res, dict):
+                            st.dataframe(pd.DataFrame([res]))
+                        elif isinstance(res, list):
+                            st.dataframe(pd.DataFrame(res))
+                        else:
+                            st.write(f"Data: {res}")
                 except Exception as e:
                     st.error(f'Unexpected audience data format: {e}')
-                    st.json(res)
+                    if isinstance(res, dict):
+                        st.dataframe(pd.DataFrame([res]))
+                    elif isinstance(res, list):
+                        st.dataframe(pd.DataFrame(res))
+                    else:
+                        st.write(f"Data: {res}")
     
     with tab2:
         st.subheader("Creative Performance")
+        st.caption("Which content formats drive higher engagement.")
         if st.session_state.get('demo_mode'):
             df_creative = pd.DataFrame({
                 'content_type': ['Image', 'Video', 'Reel', 'Story'],
@@ -97,7 +109,17 @@ def render(api_url: str):
                         else:
                             st.dataframe(df)
                     else:
-                        st.json(res)
+                        if isinstance(res, dict):
+                            st.dataframe(pd.DataFrame([res]))
+                        elif isinstance(res, list):
+                            st.dataframe(pd.DataFrame(res))
+                        else:
+                            st.write(f"Data: {res}")
                 except Exception as e:
                     st.error(f'Unexpected creative data format: {e}')
-                    st.json(res)
+                    if isinstance(res, dict):
+                        st.dataframe(pd.DataFrame([res]))
+                    elif isinstance(res, list):
+                        st.dataframe(pd.DataFrame(res))
+                    else:
+                        st.write(f"Data: {res}")

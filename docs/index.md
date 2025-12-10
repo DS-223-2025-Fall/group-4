@@ -46,28 +46,28 @@ Predictfluence is a comprehensive analytics platform that combines:
 
 ### 1. Influencer Discovery & Evaluation
 - Browse influencers by platform, category, follower count
-- View detailed profiles with performance metrics
-- Audience demographics analysis
-- Content history and engagement patterns
+- View all influencers (up to 200 per page)
+- View detailed profiles with performance metrics (Avg Engagement Rate, Avg Likes, Avg Views)
+- Table and Card view modes for easy browsing
 
 ### 2. Campaign Management
 - Create and manage marketing campaigns
-- Link influencers and content to campaigns
-- Track campaign performance in real-time
-- Budget tracking and cost analysis
+- Hire influencers directly from Recommendations page
+- Track campaign performance with summary metrics (Budget, Influencer Count, Avg Engagement, Avg Views)
+- View linked influencer performance within campaigns
 
 ### 3. AI-Powered Recommendations
 - ML-based engagement rate predictions
-- Influencer tier classification (Elite/Professional/Emerging)
-- Clustering for similar influencer discovery
-- Optimal posting schedule suggestions
+- Filter by platform, audience size, content type, and category
+- View influencer details and hire directly to campaigns
+- Predicted engagement rates with rationale for each recommendation
 
 ### 4. Advanced Analytics
-- Engagement trends over time
-- Top-performing campaigns
-- Audience demographics breakdown
+- Engagement trends over time (last 30 days)
+- Top-performing campaigns by engagement rate
+- Audience demographics breakdown (by country, age group, gender)
 - Creative performance by content type
-- Influencer skill scores
+- Dashboard KPIs: Total Campaigns, Total Influencers, Avg Engagement Rate, Avg Cost per Influencer
 
 ### 5. Production-Ready Infrastructure
 - Docker containerization for easy deployment

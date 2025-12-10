@@ -112,6 +112,7 @@ class CampaignSummary(BaseModel):
 class CampaignInfluencerPerformanceRow(BaseModel):
     influencer_id: int
     content_id: int
+    influencer_name: Optional[str] = None
     platform: Optional[str] = None
     engagement_rate: Optional[float] = None
     likes: Optional[int] = None

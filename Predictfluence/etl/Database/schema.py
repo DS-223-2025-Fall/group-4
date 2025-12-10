@@ -310,14 +310,22 @@ class Campaign(CampaignBase):
 # -----------------------------
 class CampaignContentBase(BaseModel):
     campaign_id: int
-    content_id: int
+    content_id: Optional[int] = None
+    influencer_id: Optional[int] = None
     role: Optional[str] = None
     is_paid: Optional[bool] = False
     cost: Optional[float] = 0.0
 
 
-class CampaignContentCreate(CampaignContentBase):
-    """Payload for creating a campaign content association."""
+class CampaignContentCreate(BaseModel):
+    """Payload for creating a campaign content association.
+    Note: campaign_id comes from the URL path, not the body.
+    """
+    content_id: Optional[int] = None
+    influencer_id: Optional[int] = None
+    role: Optional[str] = None
+    is_paid: Optional[bool] = False
+    cost: Optional[float] = 0.0
 
 
 class CampaignContent(CampaignContentBase):

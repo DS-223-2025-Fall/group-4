@@ -44,7 +44,7 @@ def render(api_url: str):
             st.session_state.authenticated = True
             st.session_state.auth_token = "demo-token"
             st.success("Demo mode enabled. You can browse pages.")
-            st.experimental_rerun()
+            st.rerun()
 
     st.markdown("---")
     st.caption(f"API endpoint: {api_url}")

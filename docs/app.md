@@ -19,7 +19,7 @@ The Predictfluence frontend is built with Streamlit, providing an interactive we
 
 **Features:**
 - **KPIs**:
-  - Active Campaigns count
+  - Total Campaigns count
   - Total Influencers count
   - Average Engagement Rate
   - Average Cost per Influencer
@@ -28,7 +28,7 @@ The Predictfluence frontend is built with Streamlit, providing an interactive we
   - Top performing campaigns (bar chart)
 
 **Data Sources:**
-- `GET /campaigns?status=active`
+- `GET /campaigns`
 - `GET /influencers/count`
 - `GET /analytics/performance`
 - `GET /analytics/engagement?range=30d`
@@ -47,30 +47,29 @@ The Predictfluence frontend is built with Streamlit, providing an interactive we
   - Table view: Sortable data table
   - Card view: Visual influencer cards
 - **Influencer Details**:
-  - Profile information
-  - Performance metrics
-  - Audience demographics (bar charts)
-  - Content history with engagement
+  - Profile information (Name, Handle, Platform, Followers, Category)
+  - Performance metrics (Avg Engagement Rate, Avg Likes, Avg Views)
 
 **Data Sources:**
-- `GET /influencers` (with filters)
-- `GET /influencers/{id}?include=performance,audience`
-- `GET /influencers/{id}/content`
+- `GET /influencers` (with filters, page_size=200 to show all influencers)
+- `GET /influencers/{id}?include=performance`
 
 ### 4. Campaigns Page
 **Purpose**: Manage marketing campaigns
 
 **Features:**
+- Create new campaigns with brand, objective, dates, budget, and status
 - Campaign selection dropdown
 - Campaign summary:
-  - Budget, status, dates
+  - Budget, status
   - Influencer count
   - Average engagement rate
   - Average views
-- Influencer performance table:
+- Linked Influencers & Content table:
   - Performance metrics per influencer
   - Role (primary/supporting)
   - Paid status
+  - Engagement metrics (likes, comments, views)
 
 **Data Sources:**
 - `GET /campaigns`
@@ -82,16 +81,16 @@ The Predictfluence frontend is built with Streamlit, providing an interactive we
 
 **Features:**
 - **Filters**:
-  - Platform selection
-  - Audience size band
-  - Content type
-  - Category
-  - Country
+  - Platform selection (Instagram, TikTok, YouTube, Facebook)
+  - Audience size band (1k-10k, 10k-100k, 100k-500k, 500k+)
+  - Content type (Video, Reel/Shorts, Story, Image/Carousel, Live)
+  - Category (Beauty, Fashion, Lifestyle, Tech, Gaming, Travel, Food, Fitness, Finance, Music)
 - **Results**:
   - Top 10 recommended influencers
   - Predicted engagement rate
   - Rationale for recommendation
-  - Influencer tier (Elite/Professional/Emerging)
+  - View Details button to see full influencer profile
+  - Hire button to directly assign influencer to a campaign
 
 **Data Sources:**
 - `POST /recommendations`
@@ -113,20 +112,14 @@ The Predictfluence frontend is built with Streamlit, providing an interactive we
 - `GET /analytics/audience?group_by={dimension}`
 - `GET /analytics/creative`
 
-### 7. Settings Page
-**Purpose**: User profile management
+### 7. Demo Intro Page
+**Purpose**: Introduction and overview of the platform
 
 **Features:**
-- View current profile
-- Update profile information:
-  - Email
-  - Full name
-  - Role
-  - Company
-
-**Data Sources:**
-- `GET /user/profile`
-- `PUT /user/profile`
+- Hero section with title and tagline
+- Problem/Solution/Outcome overview
+- Demo checklist showing what will be covered
+- Key reassurance about ML-powered recommendations
 
 ## Technical Details
 
@@ -173,13 +166,12 @@ app/
 ├── pages/
 │   ├── api.py          # API client wrapper
 │   ├── components.py   # Reusable UI components
-│   ├── login.py        # Login page
+│   ├── demo.py         # Demo intro page
 │   ├── dashboard.py    # Dashboard page
 │   ├── influencers.py  # Influencers page
 │   ├── campaigns.py    # Campaigns page
 │   ├── recommendations.py  # Recommendations page
-│   ├── insights.py     # Insights page
-│   └── settings.py     # Settings page
+│   └── insights.py     # Insights page
 └── requirements.txt    # Python dependencies
 ```
 

@@ -17,8 +17,8 @@ def render(api_url: str):
     with st.expander("Filters", expanded=True):
         cols = st.columns([2,2,2,2])
         platform = cols[0].selectbox("Platform", ["All", "Instagram", "TikTok", "YouTube"])
-        category = cols[1].selectbox("Category", ["Any","Lifestyle","Beauty","Tech","Gaming","Travel","Food"]) 
-        follower_range = cols[2].slider("Followers", 0, 1000000, (1000, 50000), step=1000)
+        category = cols[1].selectbox("Category", ["Any", "Fitness", "Athleisure", "Sports", "Wellness", "Lifestyle", "Beauty", "Tech", "Gaming", "Travel", "Food"]) 
+        follower_range = cols[2].slider("Followers", 0, 2000000, (0, 2000000), step=1000)
         q = cols[3].text_input("Search (name / handle)")
 
         if st.button("Apply Filters"):
@@ -26,83 +26,112 @@ def render(api_url: str):
 
     influencers_list = []
     if mode == "Table":
-        if st.session_state.get('demo_mode'):
-            df = pd.DataFrame([{'id':1,'name':'alice','platform':'Instagram','followers':12000,'category':'Beauty'},{'id':2,'name':'bob','platform':'TikTok','followers':54000,'category':'Gaming'}])
-            influencers_list = df.to_dict('records')
-            st.dataframe(df)
-        else:
-            params = {
-                'platform': None if platform=='All' else platform,
-                'category': None if category=='Any' else category,
-                'min_followers': follower_range[0],
-                'max_followers': follower_range[1],
-                'q': q or None
-            }
-            params = {k:v for k,v in params.items() if v is not None}
-            res = api.get('/influencers', params=params)
-            if res:
-                try:
-                    # Handle both list and dict with 'items' field
-                    if isinstance(res, dict) and 'items' in res:
-                        df = pd.DataFrame(res['items'])
+        # Build base params
+        params = {
+            'platform': None if platform=='All' else platform,
+            'category': None if category=='Any' else category,
+            'q': q or None,
+            'page_size': 200,  # API max is 200
+            'page': 1
+        }
+        # Only add follower filters if they're not the full range (default is 0-2000000, so no filter)
+        if follower_range and (follower_range[0] > 0 or follower_range[1] < 2000000):
+            if follower_range[0] > 0:
+                params['min_followers'] = follower_range[0]
+            if follower_range[1] < 2000000:
+                params['max_followers'] = follower_range[1]
+        params = {k:v for k,v in params.items() if v is not None}
+        res = api.get('/influencers', params=params)
+        if res:
+            try:
+                # API returns {items: [...], total: N}
+                if isinstance(res, dict) and 'items' in res:
+                    items = res['items']
+                    if items and len(items) > 0:
+                        df = pd.DataFrame(items)
                         influencers_list = df.to_dict('records')
-                    elif isinstance(res, list):
-                        df = pd.DataFrame(res)
-                        influencers_list = df.to_dict('records')
-                    else:
-                        df = pd.DataFrame([res])
-                        influencers_list = df.to_dict('records')
-                    if not df.empty:
-                        st.dataframe(df)
+                        st.dataframe(df, use_container_width=True)
+                        st.caption(f"Showing {len(items)} of {res.get('total', len(items))} influencers")
                     else:
                         st.info("No influencers found matching your filters.")
-                except Exception as e:
-                    st.error(f'Error displaying influencers: {e}')
-                    st.json(res)
-                    st.json(res)
-    else:
-        if st.session_state.get('demo_mode'):
-            cols = st.columns(3)
-            demo = [
-                {'id': 1, 'name':'Alice', 'handle':'@alice','followers':12000},
-                {'id': 2, 'name':'Bob', 'handle':'@bob','followers':54000},
-                {'id': 3, 'name':'Cara', 'handle':'@cara','followers':33000},
-            ]
-            influencers_list = demo
-            for col,inf in zip(cols, demo):
-                with col:
-                    st.markdown(f"**{inf['name']}**")
-                    st.write(inf['handle'])
-                    st.write(f"{inf['followers']:,} followers")
-        else:
-            res = api.get('/influencers', params={
-                'platform': None if platform=='All' else platform,
-                'category': None if category=='Any' else category,
-                'min_followers': follower_range[0],
-                'max_followers': follower_range[1],
-                'q': q or None
-            })
-            if res:
-                try:
-                    # Handle both list and dict with 'items' field
-                    if res:
-                        if isinstance(res, dict) and 'items' in res:
-                            influencers_list = res['items']
-                        elif isinstance(res, list):
-                            influencers_list = res
-                        else:
-                            influencers_list = [res] if res else []
+                elif isinstance(res, list):
+                    df = pd.DataFrame(res)
+                    influencers_list = df.to_dict('records')
+                    if not df.empty:
+                        st.dataframe(df, use_container_width=True)
                     else:
-                        influencers_list = []
+                        st.info("No influencers found.")
+                else:
+                    st.warning(f"Unexpected response format: {type(res)}")
+                    st.write(res)
+            except Exception as e:
+                st.error(f'Error displaying influencers: {e}')
+                st.write(f"Response type: {type(res)}")
+                if isinstance(res, dict):
+                    st.dataframe(pd.DataFrame([res]))
+                elif isinstance(res, list):
+                    st.dataframe(pd.DataFrame(res))
+                else:
+                    st.write(f"Response: {res}")
+        else:
+            st.warning("No response from API. Please check if the API service is running.")
+    else:
+        # Build base params for cards view
+        cards_params = {
+            'platform': None if platform=='All' else platform,
+            'category': None if category=='Any' else category,
+            'q': q or None,
+            'page_size': 200,  # API max is 200
+            'page': 1
+        }
+        # Only add follower filters if they're not the full range (default is 0-2000000, so no filter)
+        if follower_range and (follower_range[0] > 0 or follower_range[1] < 2000000):
+            if follower_range[0] > 0:
+                cards_params['min_followers'] = follower_range[0]
+            if follower_range[1] < 2000000:
+                cards_params['max_followers'] = follower_range[1]
+        cards_params = {k:v for k,v in cards_params.items() if v is not None}
+        res = api.get('/influencers', params=cards_params)
+        if res:
+            try:
+                # API returns {items: [...], total: N}
+                if isinstance(res, dict) and 'items' in res:
+                    influencers_list = res['items']
+                    total = res.get('total', len(influencers_list))
+                elif isinstance(res, list):
+                    influencers_list = res
+                    total = len(influencers_list)
+                else:
+                    influencers_list = [res] if res else []
+                    total = len(influencers_list)
+                
+                if influencers_list and len(influencers_list) > 0:
                     cols = st.columns(3)
                     for i, inf in enumerate(influencers_list):
                         with cols[i % 3]:
                             st.markdown(f"**{inf.get('name', 'Unknown')}**")
                             st.write(inf.get('username', inf.get('handle', '')))
                             st.write(f"{inf.get('follower_count', inf.get('followers', 0)):,} followers")
-                except Exception as e:
-                    st.error(f'Unexpected influencers data format: {e}')
-                    st.json(res)
+                            if inf.get('platform'):
+                                st.caption(f"Platform: {inf.get('platform')}")
+                            if inf.get('category'):
+                                st.caption(f"Category: {inf.get('category')}")
+                    st.caption(f"Showing {len(influencers_list)} of {total} influencers")
+                else:
+                    st.info("No influencers found matching your filters.")
+            except Exception as e:
+                st.error(f'Unexpected influencers data format: {e}')
+                if isinstance(res, dict):
+                    if 'items' in res:
+                        st.dataframe(pd.DataFrame(res['items']))
+                    else:
+                        st.dataframe(pd.DataFrame([res]))
+                elif isinstance(res, list):
+                    st.dataframe(pd.DataFrame(res))
+                else:
+                    st.write(f"Response: {res}")
+        else:
+            st.warning("No response from API. Please check if the API service is running.")
 
     # Detail view section
     if influencers_list:
@@ -125,86 +154,30 @@ def render(api_url: str):
                 inf_id = None
             
             if inf_id:
-                # Fetch influencer detail with include=performance,audience
-                if st.session_state.get('demo_mode'):
-                    detail = {
-                        'id': inf_id,
-                        'name': 'Alice',
-                        'handle': '@alice',
-                        'platform': 'Instagram',
-                        'followers': 12000,
-                        'category': 'Beauty',
-                        'performance': {'avg_engagement_rate': 0.045, 'total_posts': 120},
-                        'audience': {'country': {'US': 0.6, 'GB': 0.2, 'CA': 0.2}}
-                    }
-                else:
-                    detail = api.get(f'/influencers/{inf_id}', params={'include': 'performance,audience'})
+                # Fetch influencer detail with include=performance only
+                detail = api.get(f'/influencers/{inf_id}', params={'include': 'performance'})
                 
                 if detail:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown("### Profile")
-                        st.json({k: v for k, v in detail.items() if k not in ['audience', 'content']})
-                    
-                    # Audience Breakdown
-                    with col2:
-                        st.markdown("### Audience Breakdown")
-                        if 'audience' in detail:
-                            audience_data = detail['audience']
-                            if isinstance(audience_data, dict):
-                                if 'country' in audience_data:
-                                    df_aud = pd.DataFrame(list(audience_data['country'].items()), columns=['country', 'percentage'])
-                                    df_aud = df_aud.set_index('country')
-                                    st.bar_chart(df_aud)
-                                elif 'age_group' in audience_data:
-                                    df_aud = pd.DataFrame(list(audience_data['age_group'].items()), columns=['age_group', 'percentage'])
-                                    df_aud = df_aud.set_index('age_group')
-                                    st.bar_chart(df_aud)
-                                elif 'gender' in audience_data:
-                                    df_aud = pd.DataFrame(list(audience_data['gender'].items()), columns=['gender', 'percentage'])
-                                    df_aud = df_aud.set_index('gender')
-                                    st.bar_chart(df_aud)
-                                else:
-                                    st.json(audience_data)
-                        else:
-                            # Try dedicated audience endpoint
-                            if not st.session_state.get('demo_mode'):
-                                audience_res = api.get(f'/influencers/{inf_id}/audience')
-                                if audience_res:
-                                    if isinstance(audience_res, dict):
-                                        if 'country' in audience_res:
-                                            df_aud = pd.DataFrame(list(audience_res['country'].items()), columns=['country', 'percentage'])
-                                            df_aud = df_aud.set_index('country')
-                                            st.bar_chart(df_aud)
-                                        else:
-                                            st.json(audience_res)
-                                    else:
-                                        st.dataframe(pd.DataFrame(audience_res))
-                    
-                    # Content List
-                    st.markdown("### Content")
-                    if st.session_state.get('demo_mode'):
-                        demo_content = [
-                            {'id': 1, 'type': 'image', 'url': 'https://via.placeholder.com/300', 'engagement': 450},
-                            {'id': 2, 'type': 'video', 'url': 'https://via.placeholder.com/300', 'engagement': 680}
-                        ]
-                        cols = st.columns(2)
-                        for col, content in zip(cols, demo_content):
-                            with col:
-                                st.markdown(f"**{content['type'].title()}**")
-                                st.write(f"Engagement: {content['engagement']}")
-                    else:
-                        content_res = api.get(f'/influencers/{inf_id}/content')
-                        if content_res:
-                            try:
-                                content_list = content_res if isinstance(content_res, list) else [content_res]
-                                cols = st.columns(min(3, len(content_list)))
-                                for col, content in zip(cols, content_list):
-                                    with col:
-                                        if 'url' in content and content.get('type') == 'image':
-                                            st.image(content['url'], use_container_width=True)
-                                        st.markdown(f"**{content.get('type', 'Unknown')}**")
-                                        if 'engagement' in content:
-                                            st.write(f"Engagement: {content['engagement']}")
-                            except Exception:
-                                st.json(content_res)
+                    # Normalize nested structures (some responses wrap in 'influencer' key)
+                    base = detail.get('influencer', detail)
+                    perf = detail.get('performance') or base.get('performance')
+                    aud = detail.get('audience') or base.get('audience')
+
+                    st.markdown("### Profile")
+                    profile_fields = {
+                        "Name": base.get('name') or base.get('full_name') or "—",
+                        "Handle": base.get('username') or base.get('handle') or "—",
+                        "Platform": base.get('platform') or "—",
+                        "Followers": f"{base.get('follower_count', base.get('followers', 0)):,}" if base.get('follower_count') or base.get('followers') else "—",
+                        "Category": base.get('category') or "—",
+                    }
+                    for k, v in profile_fields.items():
+                        st.write(f"**{k}:** {v}")
+
+                    # Performance metrics
+                    if perf and isinstance(perf, dict):
+                        st.markdown("#### Performance")
+                        colp1, colp2, colp3 = st.columns(3)
+                        colp1.metric("Avg Engagement Rate", f"{perf.get('avg_engagement_rate', 0):.2%}" if perf.get('avg_engagement_rate') is not None else "—")
+                        colp2.metric("Avg Likes", f"{perf.get('avg_likes', 0):,.0f}" if perf.get('avg_likes') is not None else "—")
+                        colp3.metric("Avg Views", f"{perf.get('avg_views', 0):,.0f}" if perf.get('avg_views') is not None else "—")

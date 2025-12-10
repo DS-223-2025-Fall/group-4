@@ -111,23 +111,23 @@ Full API documentation available at: http://localhost:8008/docs
 
 ## Frontend Pages
 
+### Demo Intro
+Introduction page with problem/solution/outcome overview and demo checklist.
+
 ### Dashboard
-High-level KPIs and charts showing overall campaign performance.
+High-level KPIs (Total Campaigns, Total Influencers, Avg Engagement, Avg Cost) and charts showing overall campaign performance and trends.
 
 ### Influencers
-Browse, filter, and search influencers with detailed profile views.
+Browse, filter, and search influencers with detailed profile views showing performance metrics. Displays all influencers (up to 200 per page).
 
 ### Campaigns
-Manage campaigns and view influencer performance within campaigns.
+Create and manage campaigns. View campaign summaries (Budget, Influencer Count, Avg Engagement, Avg Views) and linked influencer performance.
 
 ### Recommendations
-AI-powered influencer recommendations with predicted engagement rates.
+AI-powered influencer recommendations with predicted engagement rates. Filter by platform, audience size, content type, and category. Hire influencers directly to campaigns.
 
 ### Insights
-Advanced analytics including audience demographics and creative performance.
-
-### Settings
-User profile management.
+Advanced analytics including audience demographics (by country, age group, gender) and creative performance (by content type).
 
 ## Data Flow
 
